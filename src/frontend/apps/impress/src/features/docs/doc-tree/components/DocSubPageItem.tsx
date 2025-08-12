@@ -12,6 +12,7 @@ import { Box, BoxButton, Icon, Text } from '@/components';
 import { useCunninghamTheme } from '@/cunningham';
 import { Doc, useTrans } from '@/features/docs/doc-management';
 import { useActionableMode } from '@/features/docs/doc-tree/hooks/useActionableMode';
+import { useLoadChildrenOnOpen } from '@/features/docs/doc-tree/hooks/useLoadChildrenOnOpen';
 import { useLeftPanelStore } from '@/features/left-panel';
 import { useResponsiveStore } from '@/stores';
 
@@ -40,8 +41,8 @@ export const DocSubPageItem = (props: TreeViewNodeProps<Doc>) => {
   const { t } = useTranslation();
 
   const [menuOpen, setMenuOpen] = useState(false);
-
-  const isActive = node.isFocused || menuOpen;
+  const isSelectedNow = treeContext?.treeData.selectedNode?.id === doc.id;
+  const isActive = node.isFocused || menuOpen || isSelectedNow;
 
   const router = useRouter();
   const { togglePanel } = useLeftPanelStore();
@@ -81,13 +82,25 @@ export const DocSubPageItem = (props: TreeViewNodeProps<Doc>) => {
     }
   };
 
-  useKeyboardActivation(['Enter', ' '], isActive, handleActivate, true);
+  useKeyboardActivation(
+    ['Enter', ' '],
+    isActive && !menuOpen,
+    handleActivate,
+    true,
+  );
+  useLoadChildrenOnOpen(
+    node.data.value.id,
+    node.isOpen,
+    treeContext?.treeData.handleLoadChildren,
+    treeContext?.treeData.setChildren,
+    (doc.children?.length ?? 0) > 0 || doc.childrenCount === 0,
+  );
 
   // prepare the text for the screen reader
   const docTitle = doc.title || untitledDocument;
   const hasChildren = (doc.children?.length || 0) > 0;
   const isExpanded = node.isOpen;
-  const isSelected = treeContext?.treeData.selectedNode?.id === doc.id;
+  const isSelected = isSelectedNow;
 
   const ariaLabel = `${docTitle}${hasChildren ? `, ${isExpanded ? t('expanded') : t('collapsed')}` : ''}${isSelected ? `, ${t('selected')}` : ''}`;
 
@@ -141,6 +154,15 @@ export const DocSubPageItem = (props: TreeViewNodeProps<Doc>) => {
             opacity: 1;
             visibility: visible;
             background: var(--c--theme--colors--greyscale-100);
+          }
+        }
+
+        /* Ensure actions are visible when hovering the whole item container */
+        &:hover {
+          .light-doc-item-actions {
+            display: flex;
+            opacity: 1;
+            visibility: visible;
           }
         }
       `}
