@@ -108,7 +108,6 @@ export const DocSubPageItem = (props: TreeViewNodeProps<Doc>) => {
         .light-doc-item-actions {
           display: flex;
           opacity: ${isActive || !isDesktop ? 1 : 0};
-          visibility: ${isActive || !isDesktop ? 'visible' : 'hidden'};
           position: absolute;
           right: 0;
           top: 0;
