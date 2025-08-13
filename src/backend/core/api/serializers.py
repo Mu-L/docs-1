@@ -493,6 +493,23 @@ class LinkDocumentSerializer(serializers.ModelSerializer):
             "link_reach",
         ]
 
+    def validate(self, attrs):
+        """Validate that link_role is compatible with link_reach."""
+        link_reach = attrs.get("link_reach", self.instance.link_reach)
+        link_role = attrs.get("link_role")
+
+        # If link_reach is restricted, link_role should not be set to anything meaningful
+        if link_reach == models.LinkReachChoices.RESTRICTED and link_role in [
+            models.LinkRoleChoices.READER,
+            models.LinkRoleChoices.EDITOR,
+        ]:
+            msg = _(
+                "Cannot set link_role when link_reach is 'restricted'. Change link_reach first."
+            )
+            raise serializers.ValidationError({"link_role": msg})
+
+        return attrs
+
 
 class DocumentDuplicationSerializer(serializers.Serializer):
     """

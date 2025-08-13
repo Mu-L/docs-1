@@ -133,7 +133,10 @@ def test_api_documents_link_configuration_update_authenticated_related_success(
     client = APIClient()
     client.force_login(user)
 
-    document = factories.DocumentFactory()
+    document = factories.DocumentFactory(
+        link_reach=models.LinkReachChoices.AUTHENTICATED,
+        link_role=models.LinkRoleChoices.READER,
+    )
     if via == USER:
         factories.UserDocumentAccessFactory(document=document, user=user, role=role)
     elif via == TEAM:
@@ -143,7 +146,10 @@ def test_api_documents_link_configuration_update_authenticated_related_success(
         )
 
     new_document_values = serializers.LinkDocumentSerializer(
-        instance=factories.DocumentFactory()
+        instance=factories.DocumentFactory(
+            link_reach=models.LinkReachChoices.PUBLIC,
+            link_role=models.LinkRoleChoices.EDITOR,
+        )
     ).data
 
     with mock_reset_connections(document.id):
@@ -158,3 +164,37 @@ def test_api_documents_link_configuration_update_authenticated_related_success(
         document_values = serializers.LinkDocumentSerializer(instance=document).data
         for key, value in document_values.items():
             assert value == new_document_values[key]
+
+
+def test_api_documents_link_configuration_update_role_restricted_forbidden():
+    """
+    Test that trying to set link_role on a document with restricted link_reach
+    returns a validation error.
+    """
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    document = factories.DocumentFactory(
+        link_reach=models.LinkReachChoices.RESTRICTED,
+        link_role=models.LinkRoleChoices.READER,
+    )
+
+    factories.UserDocumentAccessFactory(
+        document=document, user=user, role=models.RoleChoices.OWNER
+    )
+
+    new_data = {"link_role": models.LinkRoleChoices.EDITOR}
+
+    response = client.put(
+        f"/api/v1.0/documents/{document.id!s}/link-configuration/",
+        new_data,
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "link_role" in response.json()
+    assert (
+        "Cannot set link_role when link_reach is 'restricted'"
+        in response.json()["link_role"][0]
+    )
