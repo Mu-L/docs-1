@@ -19,6 +19,7 @@ and this project adheres to
 - ♿️(frontend) make doc search result labels uniquely identifiable #2212
 - ⬆️(backend) upgrade docspec to v3.0.x and adapt converter API #2220
 - ✨(backend) make forward auth request uri header configurable #2241
+- ♿️(frontend) fix sidebar resize handle for screen readers #2122
 
 ### Fixed
 
