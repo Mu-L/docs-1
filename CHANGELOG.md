@@ -31,6 +31,7 @@ and this project adheres to
 ### Removed
 
 - 🔥(backend) remove deprecated descendants endpoint #2243
+- 🔥(backend) remove content in document responses
 
 ## [v4.8.6] - 2026-04-08
 
