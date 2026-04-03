@@ -8,6 +8,7 @@ and this project adheres to
 
 ### Changed
 
+- ♻️(backend) rename documents content endpoint in `formatted-content` (BC)
 - 🚸(frontend) show Crisp from the help menu #2222
 - ♿️(frontend) structure correctly 5xx error alerts #2128
 - ♿️(frontend) make doc search result labels uniquely identifiable #2212
