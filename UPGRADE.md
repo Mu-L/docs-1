@@ -16,6 +16,20 @@ the following command inside your docker container:
 
 ## [Unreleased]
 
+We made several changes around document content management leading to several breaking changes in the API.
+
+- The endpoint `/api/v1.0/documents/{document_id}/content/` has been renamed in `/api/v1.0/documents/{document_id}/formatted-content/`
+- There is no more `content` attribute in the response of `/api/v1.0/documents/{document_id}/`, two new endpoints have been added to retrieve or update the document content.
+- A new `GET /api/v1.0/documents/{document_id}/content/` endpoint has been implemented to fetch the document content ; this endpoint streams the whole content with a `text/plain` content-type response.
+- A new `PATCH /api/v1.0/documents/{document_id}/content/` endpoint has been added to update the document content ; expected payload is:
+```json
+{
+  "content": "document content in base64",
+}
+```
+
+Other changes:
+
 - The deprecated endpoint `/api/v1.0/documents/<document_id>/descendants` is removed. The search endpoint should be used instead.
 - Upgrade docspec dependency to version >= 3.0.0
   The docspec service has changed since version 3.0.0, we ware now compatible with this version and not with version 2.x.x anymore
