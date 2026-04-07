@@ -214,11 +214,7 @@ def test_api_documents_content_update_deleted_document_for_non_owners(role):
 
 
 def test_api_documents_content_update_deleted_document_for_owners():
-    """Updating content on a soft-deleted document returns 404 for non-owners.
-
-    Soft-deleted documents are excluded from the queryset for non-owners,
-    so the endpoint returns 404 rather than 403.
-    """
+    """Updating content on a soft-deleted document returns 403 for owners."""
     user = factories.UserFactory()
     document = factories.DocumentFactory(link_reach="restricted")
     factories.UserDocumentAccessFactory(document=document, user=user, role="owner")

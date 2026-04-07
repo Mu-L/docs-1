@@ -1849,10 +1849,8 @@ class DocumentViewSet(
 
         return drf.response.Response("authorized", headers=request.headers, status=200)
 
-    @drf.decorators.action(detail=True, methods=["patch"], url_path="content")
-    def content(self, request, *args, **kwargs):
+    def _content_patch(self, request, document):
         """Update the raw Yjs content of a document stored in S3."""
-        document = self.get_object()
         serializer = serializers.DocumentContentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -1875,6 +1873,8 @@ class DocumentViewSet(
 
         existing_attachments = set(document.attachments or [])
         new_attachments = extracted_attachments - existing_attachments
+
+        # Ensure we update attachments the request user is allowed to read
         if new_attachments:
             attachments_documents = (
                 models.Document.objects.filter(
@@ -1910,6 +1910,50 @@ class DocumentViewSet(
         document.save()
 
         return drf_response.Response(status=status.HTTP_204_NO_CONTENT)
+
+    def _content_retrieve(self, document):
+        """Retrieve the raw content file ni s3 and stream it."""
+
+        if not default_storage.exists(document.file_key):
+            return StreamingHttpResponse(
+                b"", content_type="text/plain", status=status.HTTP_200_OK
+            )
+
+        def _stream(file_key):
+            with default_storage.open(file_key, "rb") as f:
+                while chunk := f.read(8192):
+                    yield chunk
+
+        response = StreamingHttpResponse(
+            streaming_content=_stream(document.file_key),
+            content_type="text/plain",
+            status=status.HTTP_200_OK,
+        )
+
+        try:
+            response["Content-Length"] = default_storage.size(document.file_key)
+        except NotImplementedError:
+            pass
+
+        return response
+
+    @drf.decorators.action(detail=True, methods=["patch", "get"], url_path="content")
+    def content(self, request, *args, **kwargs):
+        """Retrieve or update content stored in s3."""
+        document = self.get_object()
+
+        if request.method == "PATCH":
+            return self._content_patch(request, document)
+
+        if request.method == "GET":
+            # The S3 call to fetch the document can take time and the database
+            # connection is useless in this process. Hence we are closing it now
+            # to prevent having a massive number of database connections during
+            # the web-socket re-connection burst.
+            connection.close()
+            return self._content_retrieve(document)
+
+        return drf_response.Response(status=status.HTTP_501_NOT_IMPLEMENTED)
 
     @drf.decorators.action(detail=True, methods=["get"], url_path="media-check")
     def media_check(self, request, *args, **kwargs):
