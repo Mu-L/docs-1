@@ -10,12 +10,16 @@ from django.core.exceptions import ImproperlyConfigured
 from django.test.utils import override_settings
 
 import pytest
-from openai import OpenAIError
+from openai import OpenAI, OpenAIError
+from pydantic_ai.models.mistral import MistralModel
+from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.ui.vercel_ai.request_types import TextUIPart, UIMessage
 
 from core.services.ai_services import (
     BLOCKNOTE_TOOL_STRICT_PROMPT,
     AIService,
+    configure_legacy_openai_client,
+    configure_pydantic_model_provider,
     convert_async_generator_to_sync,
 )
 
@@ -26,35 +30,90 @@ pytestmark = pytest.mark.django_db
 def ai_settings(settings):
     """Fixture to set AI settings."""
     settings.AI_MODEL = "llama"
-    settings.AI_BASE_URL = "http://example.com"
-    settings.AI_API_KEY = "test-key"
+    settings.OPENAI_SDK_BASE_URL = "http://example.com"
+    settings.OPENAI_SDK_API_KEY = "test-key"
     settings.AI_FEATURE_ENABLED = True
     settings.AI_FEATURE_BLOCKNOTE_ENABLED = True
     settings.AI_FEATURE_LEGACY_ENABLED = True
     settings.LANGFUSE_PUBLIC_KEY = None
     settings.AI_VERCEL_SDK_VERSION = 6
+    yield
+    configure_pydantic_model_provider.cache_clear()
+    configure_legacy_openai_client.cache_clear()
 
 
-# -- AIService.__init__ --
+# -- AIService configure sdk--
 
 
 @pytest.mark.parametrize(
     "setting_name, setting_value",
     [
-        ("AI_BASE_URL", None),
-        ("AI_API_KEY", None),
+        ("OPENAI_SDK_BASE_URL", None),
+        ("OPENAI_SDK_API_KEY", None),
         ("AI_MODEL", None),
     ],
 )
-def test_services_ai_setting_missing(setting_name, setting_value, settings):
-    """Setting should be set"""
+def test_ai_services_configure_legacy_openai_sdk_missing(
+    setting_name, setting_value, settings
+):
+    """
+    An exception must be raised if an expected settings is missing to configure the openai sdk.
+    """
     setattr(settings, setting_name, setting_value)
 
     with pytest.raises(
         ImproperlyConfigured,
         match="AI configuration not set",
     ):
-        AIService()
+        configure_legacy_openai_client()
+
+
+def test_ai_services_configure_legacy_openai_sdk(settings):
+    """With all required settings an open ai sdk instance should be configured."""
+    settings.AI_MODEL = "llama"
+    settings.OPENAI_SDK_BASE_URL = "http://example.com"
+    settings.OPENAI_SDK_API_KEY = "test-key"
+
+    openai_sdk = configure_legacy_openai_client()
+
+    assert isinstance(openai_sdk, OpenAI)
+
+
+def test_ai_services_configure_pydantic_ai_model_openai(settings):
+    """When openai sdk settings are configured it should return an OpenAiChatModel."""
+    settings.AI_MODEL = "llama"
+    settings.OPENAI_SDK_BASE_URL = "http://example.com"
+    settings.OPENAI_SDK_API_KEY = "test-key"
+
+    pydantic_ai_model = configure_pydantic_model_provider()
+    assert isinstance(pydantic_ai_model, OpenAIChatModel)
+
+
+def test_ai_services_configure_pydantic_ai_model_mistral(settings):
+    """When mistral sdk settings are configured is should return a MistralModel."""
+    settings.AI_MODEL = "llama"
+    settings.OPENAI_SDK_BASE_URL = None
+    settings.OPENAI_SDK_API_KEY = None
+    settings.MISTRAL_SDK_API_KEY = "mistreal-sdk-key"
+    settings.MISTRAL_SDK_BASE_URL = "https://mistral.base-url.com"
+
+    pydantic_ai_model = configure_pydantic_model_provider()
+    assert isinstance(pydantic_ai_model, MistralModel)
+
+
+def test_ai_services_configure_pydantic_ai_model_no_settings(settings):
+    """When no settings are configured for a ai sdk it should raises an exception."""
+    settings.AI_MODEL = None
+    settings.OPENAI_SDK_BASE_URL = None
+    settings.OPENAI_SDK_API_KEY = None
+    settings.MISTRAL_SDK_API_KEY = None
+    settings.MISTRAL_SDK_BASE_URL = None
+
+    with pytest.raises(
+        ImproperlyConfigured,
+        match="AI configuration not set",
+    ):
+        configure_pydantic_model_provider()
 
 
 # -- AIService.transform --

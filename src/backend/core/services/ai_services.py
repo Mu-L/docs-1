@@ -7,6 +7,7 @@ import os
 import queue
 import threading
 from collections.abc import AsyncIterator, Iterator
+from functools import cache
 from typing import Any, Dict, Union
 
 from django.conf import settings
@@ -15,7 +16,9 @@ from django.core.exceptions import ImproperlyConfigured
 from langfuse import get_client
 from langfuse.openai import OpenAI as OpenAI_Langfuse
 from pydantic_ai import Agent, DeferredToolRequests
+from pydantic_ai.models.mistral import MistralModel
 from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.mistral import MistralProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.external import ExternalToolset
@@ -143,22 +146,59 @@ def convert_async_generator_to_sync(async_gen: AsyncIterator[str]) -> Iterator[s
         thread.join()
 
 
+@cache
+def configure_pydantic_model_provider() -> OpenAIChatModel | MistralModel:
+    """Configure a pydantic Model and return it."""
+    if (
+        settings.OPENAI_SDK_API_KEY
+        and settings.OPENAI_SDK_BASE_URL
+        and settings.AI_MODEL
+    ):
+        return OpenAIChatModel(
+            settings.AI_MODEL,
+            provider=OpenAIProvider(
+                api_key=settings.OPENAI_SDK_API_KEY,
+                base_url=settings.OPENAI_SDK_BASE_URL,
+            ),
+        )
+
+    if (
+        settings.MISTRAL_SDK_API_KEY
+        and settings.MISTRAL_SDK_BASE_URL
+        and settings.AI_MODEL
+    ):
+        return MistralModel(
+            settings.AI_MODEL,
+            provider=MistralProvider(
+                api_key=settings.MISTRAL_SDK_API_KEY,
+                base_url=settings.MISTRAL_SDK_BASE_URL,
+            ),
+        )
+
+    raise ImproperlyConfigured("AI configuration not set")
+
+
+@cache
+def configure_legacy_openai_client():
+    """Configure the open ai sdk client for the legacy AI feature."""
+    if (
+        settings.OPENAI_SDK_BASE_URL is None
+        or settings.OPENAI_SDK_API_KEY is None
+        or settings.AI_MODEL is None
+    ):
+        raise ImproperlyConfigured("AI configuration not set")
+    return OpenAI(
+        base_url=settings.OPENAI_SDK_BASE_URL, api_key=settings.OPENAI_SDK_API_KEY
+    )
+
+
 class AIService:
     """Service class for AI-related operations."""
 
-    def __init__(self):
-        """Ensure that the AI configuration is set properly."""
-        if (
-            settings.AI_BASE_URL is None
-            or settings.AI_API_KEY is None
-            or settings.AI_MODEL is None
-        ):
-            raise ImproperlyConfigured("AI configuration not set")
-        self.client = OpenAI(base_url=settings.AI_BASE_URL, api_key=settings.AI_API_KEY)
-
     def call_ai_api(self, system_content, text):
         """Helper method to call the OpenAI API and process the response."""
-        response = self.client.chat.completions.create(
+        client = configure_legacy_openai_client()
+        response = client.chat.completions.create(
             model=settings.AI_MODEL,
             messages=[
                 {"role": "system", "content": system_content},
@@ -324,13 +364,9 @@ class AIService:
             langfuse.auth_check()
             Agent.instrument_all()
 
-        model = OpenAIChatModel(
-            settings.AI_MODEL,
-            provider=OpenAIProvider(
-                base_url=settings.AI_BASE_URL, api_key=settings.AI_API_KEY
-            ),
+        agent = Agent(
+            configure_pydantic_model_provider(), instrument=instrument_enabled
         )
-        agent = Agent(model, instrument=instrument_enabled)
 
         accept = request.META.get("HTTP_ACCEPT", SSE_CONTENT_TYPE)
 

@@ -11,6 +11,7 @@ import pytest
 from rest_framework.test import APIClient
 
 from core import factories
+from core.services.ai_services import configure_pydantic_model_provider
 from core.tests.conftest import TEAM, USER, VIA
 
 pytestmark = pytest.mark.django_db
@@ -20,13 +21,15 @@ pytestmark = pytest.mark.django_db
 def ai_settings(settings):
     """Fixture to set AI settings."""
     settings.AI_MODEL = "llama"
-    settings.AI_BASE_URL = "http://localhost-ai:12345/"
-    settings.AI_API_KEY = "test-key"
+    settings.OPENAI_SDK_BASE_URL = "http://localhost-ai:12345/"
+    settings.OPENAI_SDK_API_KEY = "test-key"
     settings.AI_FEATURE_ENABLED = True
     settings.AI_FEATURE_BLOCKNOTE_ENABLED = True
     settings.AI_FEATURE_LEGACY_ENABLED = True
     settings.LANGFUSE_PUBLIC_KEY = None
     settings.AI_VERCEL_SDK_VERSION = 6
+    yield
+    configure_pydantic_model_provider.cache_clear()
 
 
 @override_settings(

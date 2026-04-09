@@ -71,14 +71,6 @@ OIDC_RS_ALLOWED_AUDIENCES=""
 # User reconciliation
 USER_RECONCILIATION_FORM_URL=http://localhost:3000
 
-# AI
-AI_FEATURE_ENABLED=true
-AI_FEATURE_BLOCKNOTE_ENABLED=true
-AI_FEATURE_LEGACY_ENABLED=true
-AI_BASE_URL=https://openaiendpoint.com
-AI_API_KEY=password
-AI_MODEL=llama
-
 # Collaboration
 COLLABORATION_API_URL=http://y-provider-development:4444/collaboration/api/
 COLLABORATION_BACKEND_BASE_URL=http://app-dev:8000

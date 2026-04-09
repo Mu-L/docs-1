@@ -53,6 +53,7 @@ dependencies = [
     "langfuse==3.11.2",
     "lxml==6.1.0",
     "markdown==3.10.2",
+    "mistralai==1.12.4",
     "mozilla-django-oidc==5.0.2",
     "nested-multipart-parser==1.6.0",
     "openai==2.32.0",

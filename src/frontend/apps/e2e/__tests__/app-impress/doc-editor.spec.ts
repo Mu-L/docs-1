@@ -65,19 +65,6 @@ test.describe('Doc Editor', () => {
       toolbar.locator('button[data-test="createLink"]'),
     ).toBeVisible();
 
-    /**
-     * Because of how Posthog is loaded and how auth session are
-     * saved, this assertion is not reliable on test instances
-     * We will dedicate a testcase to check the AI features
-     * on test instances with a specific setup
-     */
-    if (process.env.IS_INSTANCE !== 'true') {
-      // eslint-disable-next-line playwright/no-conditional-expect
-      await expect(
-        toolbar.getByRole('button', { name: 'Ask AI' }),
-      ).toBeVisible();
-    }
-
     await expect(
       toolbar.locator('button[data-test="comment-toolbar-button"]'),
     ).toBeVisible();
@@ -109,7 +96,6 @@ test.describe('Doc Editor', () => {
 
     await image.click();
 
-    await expect(toolbar.getByRole('button', { name: 'Ask AI' })).toBeHidden();
     await expect(
       toolbar.locator('button[data-test="comment-toolbar-button"]'),
     ).toBeHidden();

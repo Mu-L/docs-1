@@ -14,6 +14,7 @@ import pytest
 from rest_framework.test import APIClient
 
 from core import factories, models
+from core.services.ai_services import configure_legacy_openai_client
 from core.tests.documents.test_api_documents_ai_proxy import (  # pylint: disable=unused-import
     ai_settings,
 )
@@ -21,6 +22,13 @@ from core.tests.documents.test_api_documents_ai_proxy import (  # pylint: disabl
 pytestmark = pytest.mark.django_db
 
 # pylint: disable=unused-argument
+
+
+@pytest.fixture(autouse=True)
+def clear_openai_client_config():
+    """Clear the configure_legacy_openai_client cache."""
+    yield
+    configure_legacy_openai_client.cache_clear()
 
 
 def test_external_api_documents_ai_transform_not_allowed(

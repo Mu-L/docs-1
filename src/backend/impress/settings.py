@@ -808,8 +808,30 @@ class Base(Configuration):
         environ_name="AI_ALLOW_REACH_FROM",
         environ_prefix=None,
     )
-    AI_API_KEY = SecretFileValue(None, environ_name="AI_API_KEY", environ_prefix=None)
-    AI_BASE_URL = values.Value(None, environ_name="AI_BASE_URL", environ_prefix=None)
+
+    MISTRAL_SDK_BASE_URL = values.Value(
+        None, environ_name="MISTRAL_SDK_BASE_URL", environ_prefix=None
+    )
+    MISTRAL_SDK_API_KEY = SecretFileValue(
+        None, environ_name="MISTRAL_SDK_API_KEY", environ_prefix=None
+    )
+
+    OPENAI_SDK_API_KEY = SecretFileValue(
+        default=SecretFileValue(  # retrocompatibility
+            None,
+            environ_name="AI_API_KEY",
+            environ_prefix=None,
+        ),
+        environ_name="OPENAI_SDK_API_KEY",
+        environ_prefix=None,
+    )
+    OPENAI_SDK_BASE_URL = values.Value(
+        default=values.Value(  # retrocompatibility
+            None, environ_name="AI_BASE_URL", environ_prefix=None
+        ),
+        environ_name="OPENAI_SDK_BASE_URL",
+        environ_prefix=None,
+    )
     AI_BOT = values.DictValue(
         default={
             "name": _("Docs AI"),
@@ -1147,6 +1169,11 @@ class Base(Configuration):
                         }
                     },
                 }
+            )
+
+        if cls.OPENAI_SDK_API_KEY and cls.MISTRAL_SDK_API_KEY:
+            raise ValueError(
+                "Both OPENAI_SDK and MISTRAL_SDK parameters can not be set simultaneously."
             )
 
 
