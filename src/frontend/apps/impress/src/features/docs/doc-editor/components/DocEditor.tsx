@@ -7,6 +7,7 @@ import {
   Doc,
   LinkReach,
   getDocLinkReach,
+  useCollaboration,
   useIsCollaborativeEditable,
   useProviderStore,
 } from '@/docs/doc-management';
@@ -79,6 +80,7 @@ interface DocEditorProps {
 }
 
 export const DocEditor = ({ doc }: DocEditorProps) => {
+  useCollaboration(doc.id);
   const { isDesktop } = useResponsiveStore();
   const { provider, isReady } = useProviderStore();
   const { isEditable, isLoading } = useIsCollaborativeEditable(doc);

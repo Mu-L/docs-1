@@ -67,13 +67,15 @@ describe('useSaveDoc', () => {
     const yDoc = new Y.Doc();
     const docId = 'test-doc-id';
 
-    fetchMock.patch('http://test.jest/api/v1.0/documents/test-doc-id/', {
-      body: JSON.stringify({
-        id: 'test-doc-id',
-        content: 'test-content',
-        title: 'test-title',
-      }),
-    });
+    fetchMock.patch(
+      'http://test.jest/api/v1.0/documents/test-doc-id/content/',
+      {
+        body: JSON.stringify({
+          id: 'test-doc-id',
+          content: 'test-content',
+        }),
+      },
+    );
 
     renderHook(() => useSaveDoc(docId, yDoc, true), {
       wrapper: AppWrapper,
@@ -94,7 +96,7 @@ describe('useSaveDoc', () => {
 
     await waitFor(() => {
       expect(fetchMock.lastCall()?.[0]).toBe(
-        'http://test.jest/api/v1.0/documents/test-doc-id/',
+        'http://test.jest/api/v1.0/documents/test-doc-id/content/',
       );
     });
   });
@@ -104,13 +106,15 @@ describe('useSaveDoc', () => {
     const yDoc = new Y.Doc();
     const docId = 'test-doc-id';
 
-    fetchMock.patch('http://test.jest/api/v1.0/documents/test-doc-id/', {
-      body: JSON.stringify({
-        id: 'test-doc-id',
-        content: 'test-content',
-        title: 'test-title',
-      }),
-    });
+    fetchMock.patch(
+      'http://test.jest/api/v1.0/documents/test-doc-id/content/',
+      {
+        body: JSON.stringify({
+          id: 'test-doc-id',
+          content: 'test-content',
+        }),
+      },
+    );
 
     renderHook(() => useSaveDoc(docId, yDoc, true), {
       wrapper: AppWrapper,

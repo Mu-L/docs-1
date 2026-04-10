@@ -250,22 +250,16 @@ export const waitForResponseCreateDoc = (page: Page) => {
 };
 
 export const mockedDocument = async (page: Page, data: object) => {
-  await page.route(/\**\/documents\/\**/, async (route) => {
+  // document/[ID]/ or document/[ID]/tree/ routes
+  await page.route(/.*\/documents\/[^/]+\/(?:$|tree\/.*)/, async (route) => {
     const request = route.request();
-    if (
-      request.method().includes('GET') &&
-      !request.url().includes('page=') &&
-      !request.url().includes('versions') &&
-      !request.url().includes('accesses') &&
-      !request.url().includes('invitations')
-    ) {
+    if (request.method().includes('GET') && !request.url().includes('page=')) {
       const { abilities, ...doc } = data as unknown as {
         abilities?: Record<string, unknown>;
       };
       await route.fulfill({
         json: {
           id: 'mocked-document-id',
-          content: '',
           title: 'Mocked document',
           path: '000000',
           abilities: {
@@ -294,6 +288,17 @@ export const mockedDocument = async (page: Page, data: object) => {
           user_role: 'owner',
           ...doc,
         },
+      });
+    } else {
+      await route.continue();
+    }
+  });
+
+  await page.route(/.*\/documents\/[^/]+\/content\/$/, async (route) => {
+    const request = route.request();
+    if (request.method().includes('GET')) {
+      await route.fulfill({
+        body: '',
       });
     } else {
       await route.continue();

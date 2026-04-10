@@ -1,8 +1,9 @@
 import { useRouter } from 'next/router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Y from 'yjs';
 
-import { useUpdateDoc } from '@/docs/doc-management/';
+import { KEY_DOC_CONTENT } from '@/docs//doc-management/api/useDocContent';
+import { useDocContentUpdate } from '@/docs/doc-management/api/useDocContentUpdate';
 import { KEY_LIST_DOC_VERSIONS } from '@/docs/doc-versioning/api/useDocVersions';
 import { toBase64 } from '@/utils/string';
 import { isFirefox } from '@/utils/userAgent';
@@ -14,10 +15,15 @@ export const useSaveDoc = (
   yDoc: Y.Doc,
   isConnectedToCollabServer: boolean,
 ) => {
-  const { mutate: updateDoc } = useUpdateDoc({
-    listInvalidQueries: [KEY_LIST_DOC_VERSIONS],
+  const isSavingRef = useRef(false);
+  const { mutate: updateDocContent } = useDocContentUpdate({
+    listInvalidQueries: [KEY_LIST_DOC_VERSIONS, KEY_DOC_CONTENT],
     onSuccess: () => {
+      isSavingRef.current = false;
       setIsLocalChange(false);
+    },
+    onError: () => {
+      isSavingRef.current = false;
     },
   });
   const [isLocalChange, setIsLocalChange] = useState<boolean>(false);
@@ -64,18 +70,19 @@ export const useSaveDoc = (
   }, [yDoc]);
 
   const saveDoc = useCallback(() => {
-    if (!isLocalChange) {
+    if (!isLocalChange || isSavingRef.current) {
       return false;
     }
 
-    updateDoc({
+    isSavingRef.current = true;
+    updateDocContent({
       id: docId,
       content: toBase64(Y.encodeStateAsUpdate(yDoc)),
       websocket: isConnectedToCollabServer,
     });
 
     return true;
-  }, [isLocalChange, updateDoc, docId, yDoc, isConnectedToCollabServer]);
+  }, [isLocalChange, updateDocContent, docId, yDoc, isConnectedToCollabServer]);
 
   const router = useRouter();
 
