@@ -18,6 +18,7 @@ from django.utils.translation import gettext_lazy as _
 
 import sentry_sdk
 from configurations import Configuration, values
+from corsheaders.defaults import default_headers
 from csp.constants import NONE
 from lasuite.configuration.values import SecretFileValue
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -1048,6 +1049,10 @@ class Base(Configuration):
         ),
     }
 
+    CONTENT_METADATA_CACHE_TIMEOUT = values.IntegerValue(
+        60 * 60 * 24, environ_name="CONTENT_METADATA_CACHE_TIMEOUT", environ_prefix=None
+    )
+
     # pylint: disable=invalid-name
     @property
     def ENVIRONMENT(self):
@@ -1170,6 +1175,12 @@ class Development(Base):
     ALLOWED_HOSTS = ["*"]
     CORS_ALLOW_ALL_ORIGINS = True
     CSRF_TRUSTED_ORIGINS = ["http://localhost:8072", "http://localhost:3000"]
+    CORS_ALLOW_HEADERS = (
+        *default_headers,
+        "if-none-match",
+        "if-modified-since",
+    )
+    CORS_EXPOSE_HEADERS = ["ETag"]
     DEBUG = True
 
     USE_SWAGGER = True

@@ -2,15 +2,19 @@
 Tests for the GET /api/v1.0/documents/{id}/content/ endpoint.
 """
 
+from datetime import timedelta
 from uuid import uuid4
 
+from django.core.cache import cache
 from django.core.files.storage import default_storage
+from django.utils import timezone
 
 import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from core import factories
+from core.api.utils import get_content_metadata_cache_key
 from core.tests.conftest import TEAM, USER, VIA
 
 pytestmark = pytest.mark.django_db
@@ -30,6 +34,8 @@ def test_api_documents_content_retrieve_anonymous_public():
     """Anonymous users can retrieve content of a public document."""
     document = factories.DocumentFactory(link_reach="public")
 
+    assert not cache.get(get_content_metadata_cache_key(document.id))
+
     response = APIClient().get(f"/api/v1.0/documents/{document.id!s}/content/")
 
     assert response.status_code == status.HTTP_200_OK
@@ -37,6 +43,12 @@ def test_api_documents_content_retrieve_anonymous_public():
     assert b"".join(
         response.streaming_content
     ) == factories.YDOC_HELLO_WORLD_BASE64.encode("utf-8")
+    assert response["Content-Length"] is not None
+    assert response["ETag"] is not None
+    assert response["Last-Modified"] is not None
+    assert response["Cache-Control"] == "private, no-cache"
+
+    assert cache.get(get_content_metadata_cache_key(document.id))
 
 
 def test_api_documents_content_retrieve_authenticated_no_access():
@@ -64,12 +76,20 @@ def test_api_documents_content_retrieve_authenticated_not_restricted(link_reach)
     client = APIClient()
     client.force_login(user)
 
+    assert not cache.get(get_content_metadata_cache_key(document.id))
+
     response = client.get(f"/api/v1.0/documents/{document.id!s}/content/")
 
     assert response.status_code == status.HTTP_200_OK
     assert b"".join(
         response.streaming_content
     ) == factories.YDOC_HELLO_WORLD_BASE64.encode("utf-8")
+    assert response["Content-Length"] is not None
+    assert response["ETag"] is not None
+    assert response["Last-Modified"] is not None
+    assert response["Cache-Control"] == "private, no-cache"
+
+    assert cache.get(get_content_metadata_cache_key(document.id))
 
 
 @pytest.mark.parametrize("via", VIA)
@@ -92,12 +112,20 @@ def test_api_documents_content_retrieve_success(role, via, mock_user_teams):
     client = APIClient()
     client.force_login(user)
 
+    assert not cache.get(get_content_metadata_cache_key(document.id))
+
     response = client.get(f"/api/v1.0/documents/{document.id!s}/content/")
 
     assert response.status_code == status.HTTP_200_OK
     assert b"".join(
         response.streaming_content
     ) == factories.YDOC_HELLO_WORLD_BASE64.encode("utf-8")
+    assert response["Content-Length"] is not None
+    assert response["ETag"] is not None
+    assert response["Last-Modified"] is not None
+    assert response["Cache-Control"] == "private, no-cache"
+
+    assert cache.get(get_content_metadata_cache_key(document.id))
 
 
 def test_api_documents_content_retrieve_nonexistent_document():
@@ -128,6 +156,12 @@ def test_api_documents_content_retrieve_file_not_in_storage():
 
     assert response.status_code == status.HTTP_200_OK
     assert b"".join(response.streaming_content) == b""
+    assert not response.get("Content-Length")
+    assert not response.get("ETag")
+    assert not response.get("Last-Modified")
+    assert not response.get("Cache-Control")
+
+    assert not cache.get(get_content_metadata_cache_key(document.id))
 
 
 def test_api_documents_content_retrieve_content_length_header():
@@ -182,9 +216,225 @@ def test_api_documents_content_retrieve_deleted_document_for_owner():
     client = APIClient()
     client.force_login(user)
 
+    assert not cache.get(get_content_metadata_cache_key(document.id))
+
     response = client.get(f"/api/v1.0/documents/{document.id!s}/content/")
 
     assert response.status_code == status.HTTP_200_OK
     assert b"".join(
         response.streaming_content
     ) == factories.YDOC_HELLO_WORLD_BASE64.encode("utf-8")
+    assert response["Content-Length"] is not None
+    assert response["ETag"] is not None
+    assert response["Last-Modified"] is not None
+    assert response["Cache-Control"] == "private, no-cache"
+
+    assert cache.get(get_content_metadata_cache_key(document.id))
+
+
+def test_api_documents_content_retrieve_reusing_etag():
+    """Fetching content reusing a valid ETag header should return a 304."""
+
+    user = factories.UserFactory()
+    document = factories.DocumentFactory(link_reach="restricted")
+    factories.UserDocumentAccessFactory(document=document, user=user, role="owner")
+
+    client = APIClient()
+    client.force_login(user)
+
+    file_metadata = default_storage.connection.meta.client.head_object(
+        Bucket=default_storage.bucket_name, Key=document.file_key
+    )
+    last_modified = file_metadata["LastModified"]
+    etag = file_metadata["ETag"]
+    size = file_metadata["ContentLength"]
+
+    cache.set(
+        get_content_metadata_cache_key(document.id),
+        {
+            "last_modified": last_modified.isoformat(),
+            "etag": etag,
+            "size": size,
+        },
+    )
+
+    response = client.get(
+        f"/api/v1.0/documents/{document.id!s}/content/",
+        headers={"If-None-Match": etag},
+    )
+
+    assert response.status_code == status.HTTP_304_NOT_MODIFIED
+
+
+def test_api_documents_content_retrieve_reusing_invalid_etag():
+    """Fetching content using an invalid ETag header should return a 200."""
+
+    user = factories.UserFactory()
+    document = factories.DocumentFactory(link_reach="restricted")
+    factories.UserDocumentAccessFactory(document=document, user=user, role="owner")
+
+    client = APIClient()
+    client.force_login(user)
+
+    file_metadata = default_storage.connection.meta.client.head_object(
+        Bucket=default_storage.bucket_name, Key=document.file_key
+    )
+    last_modified = file_metadata["LastModified"]
+    etag = file_metadata["ETag"]
+    size = file_metadata["ContentLength"]
+
+    cache.set(
+        get_content_metadata_cache_key(document.id),
+        {
+            "last_modified": last_modified.isoformat(),
+            "etag": etag,
+            "size": size,
+        },
+    )
+
+    response = client.get(
+        f"/api/v1.0/documents/{document.id!s}/content/",
+        headers={"If-None-Match": "invalid"},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert b"".join(
+        response.streaming_content
+    ) == factories.YDOC_HELLO_WORLD_BASE64.encode("utf-8")
+    assert response["Content-Length"] is not None
+    assert response["ETag"] is not None
+    assert response["Last-Modified"] is not None
+    assert response["Cache-Control"] == "private, no-cache"
+
+
+def test_api_documents_content_retrieve_using_etag_without_cache():
+    """
+    Fetching content using a valid ETag header but without existing cache should return a 304.
+    """
+
+    user = factories.UserFactory()
+    document = factories.DocumentFactory(link_reach="restricted")
+    factories.UserDocumentAccessFactory(document=document, user=user, role="owner")
+
+    client = APIClient()
+    client.force_login(user)
+
+    file_metadata = default_storage.connection.meta.client.head_object(
+        Bucket=default_storage.bucket_name, Key=document.file_key
+    )
+    etag = file_metadata["ETag"]
+
+    assert not cache.get(get_content_metadata_cache_key(document.id))
+
+    response = client.get(
+        f"/api/v1.0/documents/{document.id!s}/content/",
+        headers={"If-None-Match": etag},
+    )
+
+    assert response.status_code == status.HTTP_304_NOT_MODIFIED
+
+
+def test_api_documents_content_retrieve_reusing_last_modified_since():
+    """Fetching a content using a If-Modified-Since valid should return a 304."""
+
+    user = factories.UserFactory()
+    document = factories.DocumentFactory(link_reach="restricted")
+    factories.UserDocumentAccessFactory(document=document, user=user, role="owner")
+
+    client = APIClient()
+    client.force_login(user)
+
+    file_metadata = default_storage.connection.meta.client.head_object(
+        Bucket=default_storage.bucket_name, Key=document.file_key
+    )
+    last_modified = file_metadata["LastModified"]
+    etag = file_metadata["ETag"]
+    size = file_metadata["ContentLength"]
+
+    cache.set(
+        get_content_metadata_cache_key(document.id),
+        {
+            "last_modified": last_modified.isoformat(),
+            "etag": etag,
+            "size": size,
+        },
+    )
+
+    response = client.get(
+        f"/api/v1.0/documents/{document.id!s}/content/",
+        headers={
+            "If-Modified-Since": timezone.now().strftime("%a, %d %b %Y %H:%M:%S %Z")
+        },
+    )
+
+    assert response.status_code == status.HTTP_304_NOT_MODIFIED
+
+
+def test_api_documents_content_retrieve_using_last_modified_since_without_cache():
+    """
+    Fetching a content using a If-Modified-Since valid should return a 304
+    even if content metadata are not present in cache.
+    """
+
+    user = factories.UserFactory()
+    document = factories.DocumentFactory(link_reach="restricted")
+    factories.UserDocumentAccessFactory(document=document, user=user, role="owner")
+
+    client = APIClient()
+    client.force_login(user)
+
+    assert not cache.get(get_content_metadata_cache_key(document.id))
+
+    response = client.get(
+        f"/api/v1.0/documents/{document.id!s}/content/",
+        headers={
+            "If-Modified-Since": timezone.now().strftime("%a, %d %b %Y %H:%M:%S %Z")
+        },
+    )
+
+    assert response.status_code == status.HTTP_304_NOT_MODIFIED
+
+
+def test_api_documents_content_retrieve_reusing_last_modified_since_invalid():
+    """Fetching a content using a If-Modified-Since invalid should return a 200."""
+
+    user = factories.UserFactory()
+    document = factories.DocumentFactory(link_reach="restricted")
+    factories.UserDocumentAccessFactory(document=document, user=user, role="owner")
+
+    client = APIClient()
+    client.force_login(user)
+
+    file_metadata = default_storage.connection.meta.client.head_object(
+        Bucket=default_storage.bucket_name, Key=document.file_key
+    )
+    last_modified = file_metadata["LastModified"]
+    etag = file_metadata["ETag"]
+    size = file_metadata["ContentLength"]
+
+    cache.set(
+        get_content_metadata_cache_key(document.id),
+        {
+            "last_modified": last_modified.isoformat(),
+            "etag": etag,
+            "size": size,
+        },
+    )
+
+    response = client.get(
+        f"/api/v1.0/documents/{document.id!s}/content/",
+        headers={
+            "If-Modified-Since": (timezone.now() - timedelta(minutes=60)).strftime(
+                "%a, %d %b %Y %H:%M:%S %Z"
+            )
+        },
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert b"".join(
+        response.streaming_content
+    ) == factories.YDOC_HELLO_WORLD_BASE64.encode("utf-8")
+    assert response["Content-Length"] is not None
+    assert response["ETag"] is not None
+    assert response["Last-Modified"] is not None
+    assert response["Cache-Control"] == "private, no-cache"

@@ -3,6 +3,7 @@
 # pylint: disable=too-many-lines
 
 import base64
+import datetime as dt
 import ipaddress
 import json
 import logging
@@ -1908,16 +1909,71 @@ class DocumentViewSet(
             document.attachments = list(existing_attachments | readable_attachments)
         document.content = content
         document.save()
+        cache.delete(utils.get_content_metadata_cache_key(document.id))
 
         return drf_response.Response(status=status.HTTP_204_NO_CONTENT)
 
-    def _content_retrieve(self, document):
+    def _content_retrieve(self, request, document):
         """Retrieve the raw content file ni s3 and stream it."""
-
-        if not default_storage.exists(document.file_key):
-            return StreamingHttpResponse(
-                b"", content_type="text/plain", status=status.HTTP_200_OK
+        if not (
+            content_metadata := cache.get(
+                utils.get_content_metadata_cache_key(document.id)
             )
+        ):
+            try:
+                file_metadata = default_storage.connection.meta.client.head_object(
+                    Bucket=default_storage.bucket_name, Key=document.file_key
+                )
+            except ClientError:
+                return StreamingHttpResponse(
+                    b"", content_type="text/plain", status=status.HTTP_200_OK
+                )
+
+            last_modified = file_metadata["LastModified"]
+            etag = file_metadata["ETag"]
+            size = file_metadata["ContentLength"]
+
+            cache.set(
+                utils.get_content_metadata_cache_key(document.id),
+                {
+                    "last_modified": last_modified.isoformat(),
+                    "etag": etag,
+                    "size": size,
+                },
+                settings.CONTENT_METADATA_CACHE_TIMEOUT,
+            )
+        else:
+            last_modified = dt.datetime.fromisoformat(
+                content_metadata.get("last_modified")
+            )
+            etag = content_metadata.get("etag")
+            size = content_metadata.get("size")
+
+        # --- Check conditional headers from any client ---
+        if_none_match = request.META.get("HTTP_IF_NONE_MATCH")  # contains ETag
+        if_modified_since = request.META.get("HTTP_IF_MODIFIED_SINCE")
+
+        # Strip the W/ weak prefix. Proxies (e.g. nginx with gzip) convert strong
+        # ETags to weak ones, so a strict equality check would fail on production
+        # even when unchanged.
+        if if_none_match and if_none_match.startswith("W/"):
+            if_none_match = if_none_match.removeprefix("W/")
+
+        if if_none_match and if_none_match == etag:
+            return drf_response.Response(status=status.HTTP_304_NOT_MODIFIED)
+
+        if if_modified_since:
+            try:
+                since = dt.datetime.strptime(
+                    if_modified_since, "%a, %d %b %Y %H:%M:%S %Z"
+                )
+            except ValueError:
+                pass
+            else:
+                if not since.tzinfo:
+                    since = since.replace(tzinfo=dt.timezone.utc)
+                if last_modified <= since:
+                    return drf_response.Response(status=status.HTTP_304_NOT_MODIFIED)
 
         def _stream(file_key):
             with default_storage.open(file_key, "rb") as f:
@@ -1930,10 +1986,10 @@ class DocumentViewSet(
             status=status.HTTP_200_OK,
         )
 
-        try:
-            response["Content-Length"] = default_storage.size(document.file_key)
-        except NotImplementedError:
-            pass
+        response["Content-Length"] = size
+        response["ETag"] = etag
+        response["Last-Modified"] = last_modified.strftime("%a, %d %b %Y %H:%M:%S %Z")
+        response["Cache-Control"] = "private, no-cache"
 
         return response
 
@@ -1951,7 +2007,7 @@ class DocumentViewSet(
             # to prevent having a massive number of database connections during
             # the web-socket re-connection burst.
             connection.close()
-            return self._content_retrieve(document)
+            return self._content_retrieve(request, document)
 
         return drf_response.Response(status=status.HTTP_501_NOT_IMPLEMENTED)
 

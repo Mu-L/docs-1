@@ -194,3 +194,8 @@ class AIUserRateThrottle(AIBaseRateThrottle):
             if x_forwarded_for
             else request.META.get("REMOTE_ADDR")
         )
+
+
+def get_content_metadata_cache_key(document_id):
+    """Return the cache key used to store content metadata."""
+    return f"docs:content-metadata:{document_id!s}"
