@@ -8,8 +8,8 @@ import { RequestSerializer } from '../RequestSerializer';
 import { SyncManager } from '../SyncManager';
 
 interface OptionsReadonly {
-  tableName: 'doc-list' | 'doc-item';
-  type: 'list' | 'item';
+  tableName: 'doc-list' | 'doc-item' | 'doc-content';
+  type: 'list' | 'item' | 'content';
 }
 
 interface OptionsMutate {
@@ -51,6 +51,27 @@ export class ApiPlugin implements WorkboxPlugin {
     request,
     response,
   }) => {
+    // For content requests, a 304 means the document hasn't changed:
+    // transparently serve the cached version from IDB.
+    if (this.options.type === 'content' && response.status === 304) {
+      const db = await DocsDB.open();
+      const entry = await db.get('doc-content', request.url);
+      db.close();
+      if (entry) {
+        return new Response(entry.content, {
+          status: 200,
+          statusText: 'OK',
+          headers: {
+            'Content-Type': 'text/plain',
+            ...(entry.etag && { ETag: entry.etag }),
+            ...(entry.lastModified && {
+              'Last-Modified': entry.lastModified,
+            }),
+          },
+        });
+      }
+    }
+
     if (response.status !== 200) {
       return response;
     }
@@ -59,9 +80,18 @@ export class ApiPlugin implements WorkboxPlugin {
       const tableName = this.options.tableName;
       const body = (await response.clone().json()) as DocsResponse | Doc;
       await DocsDB.cacheResponse(request.url, body, tableName);
-    }
-
-    if (this.options.type === 'update') {
+    } else if (this.options.type === 'content') {
+      // Cache the content response with its ETag / Last-Modified to be
+      // able to use it for conditional requests and offline access.
+      const content = await response.clone().text();
+      const etag = response.headers.get('ETag') ?? '';
+      const lastModified = response.headers.get('Last-Modified') ?? '';
+      await DocsDB.cacheResponse(
+        request.url,
+        { etag, lastModified, content },
+        'doc-content',
+      );
+    } else if (this.options.type === 'update') {
       const db = await DocsDB.open();
       const storedResponse = await db.get('doc-item', request.url);
 
@@ -108,6 +138,23 @@ export class ApiPlugin implements WorkboxPlugin {
 
     await this.options.syncManager.sync();
 
+    // For content requests, add If-None-Match / If-Modified-Since from IDB
+    // so the backend can return a 304 when the document hasn't changed.
+    if (this.options.type === 'content') {
+      const db = await DocsDB.open();
+      const entry = await db.get('doc-content', request.url);
+      db.close();
+      if (entry?.etag || entry?.lastModified) {
+        const headers = new Headers(request.headers);
+        if (entry.etag) {
+          headers.set('If-None-Match', entry.etag);
+        } else {
+          headers.set('If-Modified-Since', entry.lastModified);
+        }
+        return new Request(request, { headers });
+      }
+    }
+
     return Promise.resolve(request);
   };
 
@@ -129,6 +176,8 @@ export class ApiPlugin implements WorkboxPlugin {
       case 'list':
       case 'item':
         return this.handlerDidErrorRead(this.options.tableName, request.url);
+      case 'content':
+        return this.handlerDidErrorContent(request);
     }
 
     return Promise.resolve(ApiPlugin.getApiCatchHandler());
@@ -417,6 +466,26 @@ export class ApiPlugin implements WorkboxPlugin {
       statusText: 'OK',
       headers: {
         'Content-Type': 'application/json',
+      },
+    });
+  };
+
+  private handlerDidErrorContent = async (request: Request) => {
+    const db = await DocsDB.open();
+    const entry = await db.get('doc-content', request.url);
+    db.close();
+
+    if (!entry) {
+      return Promise.resolve(ApiPlugin.getApiCatchHandler());
+    }
+
+    return new Response(entry.content, {
+      status: 200,
+      statusText: 'OK',
+      headers: {
+        'Content-Type': 'text/plain',
+        ...(entry.etag && { ETag: entry.etag }),
+        ...(entry.lastModified && { 'Last-Modified': entry.lastModified }),
       },
     });
   };

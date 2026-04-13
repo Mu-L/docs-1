@@ -63,6 +63,22 @@ registerRoute(
 );
 
 registerRoute(
+  ({ url }) =>
+    isApiUrl(url.href) && /\/documents\/[a-z0-9-]+\/content\/$/.test(url.href),
+  new NetworkOnly({
+    plugins: [
+      new ApiPlugin({
+        tableName: 'doc-content',
+        type: 'content',
+        syncManager,
+      }),
+      new OfflinePlugin(),
+    ],
+  }),
+  'GET',
+);
+
+registerRoute(
   ({ url }) => isDocumentApiUrl(url),
   new NetworkOnly({
     plugins: [

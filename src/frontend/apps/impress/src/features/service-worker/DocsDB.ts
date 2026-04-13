@@ -11,6 +11,12 @@ export type DBRequest = {
   key: string;
 };
 
+export interface DocContentCacheEntry {
+  etag: string;
+  lastModified: string;
+  content: string;
+}
+
 interface IDocsDB extends DBSchema {
   'doc-list': {
     key: string;
@@ -28,9 +34,13 @@ interface IDocsDB extends DBSchema {
     key: 'version';
     value: number;
   };
+  'doc-content': {
+    key: string;
+    value: DocContentCacheEntry;
+  };
 }
 
-type TableName = 'doc-list' | 'doc-item' | 'doc-mutation';
+type TableName = 'doc-list' | 'doc-item' | 'doc-mutation' | 'doc-content';
 
 /**
  * IndexDB prefers incremental versioning when upgrading the database,
@@ -77,6 +87,9 @@ export class DocsDB {
           }
           if (!db.objectStoreNames.contains('doc-version')) {
             db.createObjectStore('doc-version');
+          }
+          if (!db.objectStoreNames.contains('doc-content')) {
+            db.createObjectStore('doc-content');
           }
         },
       });
@@ -127,7 +140,7 @@ export class DocsDB {
    */
   public static async cacheResponse(
     key: string,
-    body: DocsResponse | Doc | DBRequest,
+    body: DocsResponse | Doc | DBRequest | DocContentCacheEntry,
     tableName: TableName,
   ): Promise<void> {
     const db = await DocsDB.open();

@@ -108,6 +108,7 @@ describe('ApiPlugin', () => {
     { type: 'create', withClone: true },
     { type: 'list', withClone: false },
     { type: 'item', withClone: false },
+    { type: 'content', withClone: false },
   ].forEach(({ type, withClone }) => {
     it(`calls requestWillFetch with type ${type}`, async () => {
       const mockedSync = vi.fn().mockResolvedValue({});
@@ -135,6 +136,60 @@ describe('ApiPlugin', () => {
       expect(mockedSync).toHaveBeenCalled();
       expect(request?.url).toBe('test-url');
     });
+  });
+
+  it(`calls requestWillFetch with type content and sets If-None-Match when etag is cached`, async () => {
+    const mockedSync = vi.fn().mockResolvedValue({});
+    const apiPlugin = new ApiPlugin({
+      type: 'content',
+      tableName: 'doc-content',
+      syncManager: { sync: () => mockedSync() } as any,
+    });
+
+    mockedGet.mockResolvedValue({
+      etag: '"abc123"',
+      lastModified: '',
+      content: 'hello',
+    });
+
+    const requestInit = {
+      request: new Request('http://test.jest/documents/123456/content/'),
+    } as any;
+
+    const request = await apiPlugin.requestWillFetch?.(requestInit);
+    expect(mockedGet).toHaveBeenCalledWith(
+      'doc-content',
+      'http://test.jest/documents/123456/content/',
+    );
+    expect(request?.headers.get('If-None-Match')).toBe('"abc123"');
+  });
+
+  it(`calls requestWillFetch with type content and sets If-Modified-Since when only lastModified is cached`, async () => {
+    const mockedSync = vi.fn().mockResolvedValue({});
+    const apiPlugin = new ApiPlugin({
+      type: 'content',
+      tableName: 'doc-content',
+      syncManager: { sync: () => mockedSync() } as any,
+    });
+
+    mockedGet.mockResolvedValue({
+      etag: '',
+      lastModified: 'Mon, 14 Apr 2026 00:00:00 GMT',
+      content: 'hello',
+    });
+
+    const requestInit = {
+      request: new Request('http://test.jest/documents/123456/content/'),
+    } as any;
+
+    const request = await apiPlugin.requestWillFetch?.(requestInit);
+    expect(mockedGet).toHaveBeenCalledWith(
+      'doc-content',
+      'http://test.jest/documents/123456/content/',
+    );
+    expect(request?.headers.get('If-Modified-Since')).toBe(
+      'Mon, 14 Apr 2026 00:00:00 GMT',
+    );
   });
 
   it(`checks getApiCatchHandler`, async () => {
