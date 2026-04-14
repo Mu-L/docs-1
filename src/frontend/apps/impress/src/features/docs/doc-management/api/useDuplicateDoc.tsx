@@ -17,7 +17,6 @@ import { toBase64 } from '@/utils/string';
 import { useProviderStore } from '../stores';
 import { Doc } from '../types';
 
-import { KEY_DOC_CONTENT } from './useDocContent';
 import { useDocContentUpdate } from './useDocContentUpdate';
 import { KEY_LIST_DOC } from './useDocs';
 
@@ -64,7 +63,7 @@ export function useDuplicateDoc(options?: DuplicateDocOptions) {
   const { provider } = useProviderStore();
 
   const { mutateAsync: updateDocContent } = useDocContentUpdate({
-    listInvalidQueries: [KEY_LIST_DOC_VERSIONS, KEY_DOC_CONTENT],
+    listInvalidQueries: [KEY_LIST_DOC_VERSIONS],
   });
 
   return useMutation<DuplicateDocResponse, APIError, DuplicateDocParams>({

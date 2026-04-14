@@ -2,22 +2,28 @@ import { useRouter } from 'next/router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Y from 'yjs';
 
-import { KEY_DOC_CONTENT } from '@/docs//doc-management/api/useDocContent';
 import { useDocContentUpdate } from '@/docs/doc-management/api/useDocContentUpdate';
+import { useProviderStore } from '@/docs/doc-management/stores/useProviderStore';
 import { KEY_LIST_DOC_VERSIONS } from '@/docs/doc-versioning/api/useDocVersions';
+import { useIsOffline } from '@/features/service-worker';
 import { toBase64 } from '@/utils/string';
 import { isFirefox } from '@/utils/userAgent';
 
 const SAVE_INTERVAL = 60000;
 
-export const useSaveDoc = (
-  docId: string,
-  yDoc: Y.Doc,
-  isConnectedToCollabServer: boolean,
-) => {
+export const useSaveDoc = (docId: string, yDoc: Y.Doc) => {
+  /**
+   * isSynced is more reliable than isConnected in this cases
+   * because it indicates that the content is fully synchronised
+   * with the yjs server
+   */
+  const { isSynced: isConnectedToCollabServer } = useProviderStore();
+
+  const { isOffline } = useIsOffline();
   const isSavingRef = useRef(false);
   const { mutate: updateDocContent } = useDocContentUpdate({
-    listInvalidQueries: [KEY_LIST_DOC_VERSIONS, KEY_DOC_CONTENT],
+    listInvalidQueries: [KEY_LIST_DOC_VERSIONS],
+    isOptimistic: isOffline, // Enable optimistic updates when offline, to update the cache immediately
     onSuccess: () => {
       isSavingRef.current = false;
       setIsLocalChange(false);

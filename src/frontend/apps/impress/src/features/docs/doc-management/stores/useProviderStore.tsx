@@ -12,6 +12,7 @@ export interface UseCollaborationStore {
     initialDoc?: Base64,
   ) => HocuspocusProvider;
   destroyProvider: () => void;
+  setReady: (value: boolean) => void;
   provider: HocuspocusProvider | undefined;
   isConnected: boolean;
   isReady: boolean;
@@ -161,5 +162,6 @@ export const useProviderStore = create<UseCollaborationStore>((set, get) => ({
 
     set(defaultValues);
   },
+  setReady: (value: boolean) => set({ isReady: value }),
   resetLostConnection: () => set({ hasLostConnection: false }),
 }));

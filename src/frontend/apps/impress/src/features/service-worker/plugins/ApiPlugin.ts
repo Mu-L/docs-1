@@ -2,6 +2,7 @@ import { WorkboxPlugin } from 'workbox-core';
 
 import { Doc, DocsResponse } from '@/docs/doc-management';
 import { LinkReach, LinkRole, Role } from '@/docs/doc-management/types';
+import { UpdateDocContentParams } from '@/features/docs/doc-management/api/useDocContentUpdate';
 
 import { DBRequest, DocsDB } from '../DocsDB';
 import { RequestSerializer } from '../RequestSerializer';
@@ -13,7 +14,7 @@ interface OptionsReadonly {
 }
 
 interface OptionsMutate {
-  type: 'update' | 'delete' | 'create';
+  type: 'update' | 'delete' | 'create' | 'content-update';
 }
 
 interface OptionsSync {
@@ -130,6 +131,7 @@ export class ApiPlugin implements WorkboxPlugin {
   requestWillFetch: WorkboxPlugin['requestWillFetch'] = async ({ request }) => {
     if (
       this.options.type === 'update' ||
+      this.options.type === 'content-update' ||
       this.options.type === 'create' ||
       this.options.type === 'delete'
     ) {
@@ -173,6 +175,8 @@ export class ApiPlugin implements WorkboxPlugin {
         return this.handlerDidErrorDelete(request);
       case 'update':
         return this.handlerDidErrorUpdate(request);
+      case 'content-update':
+        return this.handlerDidErrorContentUpdate(request);
       case 'list':
       case 'item':
         return this.handlerDidErrorRead(this.options.tableName, request.url);
@@ -181,6 +185,21 @@ export class ApiPlugin implements WorkboxPlugin {
     }
 
     return Promise.resolve(ApiPlugin.getApiCatchHandler());
+  };
+
+  private queueMutation = async (request: Request): Promise<void> => {
+    const requestData = (
+      await RequestSerializer.fromRequest(request)
+    ).toObject();
+    const serializeRequest: DBRequest = {
+      requestData,
+      key: `${Date.now()}`,
+    };
+    await DocsDB.cacheResponse(
+      serializeRequest.key,
+      serializeRequest,
+      'doc-mutation',
+    );
   };
 
   private handlerDidErrorCreate = async (request: Request) => {
@@ -271,10 +290,24 @@ export class ApiPlugin implements WorkboxPlugin {
       ancestors_link_role: undefined,
     };
 
+    /**
+     * Create a new document in the cache with the new id, so the client can use it while offline,
+     * and it will be updated later when the request will be synced.
+     */
     await DocsDB.cacheResponse(
       `${request.url}${uuid}/`,
       newResponse,
       'doc-item',
+    );
+
+    /**
+     * Create an empty content for the new document in the cache, so the client can use it while offline,
+     * and it will be updated later when the request will be synced.
+     */
+    await DocsDB.cacheResponse(
+      `${request.url}${uuid}/content/`,
+      { etag: '', lastModified: '', content: '' },
+      'doc-content',
     );
 
     /**
@@ -312,26 +345,14 @@ export class ApiPlugin implements WorkboxPlugin {
     /**
      * Queue the request in the cache 'doc-mutation' to sync it later.
      */
-    const requestData = (
-      await RequestSerializer.fromRequest(this.initialRequest)
-    ).toObject();
-
-    const serializeRequest: DBRequest = {
-      requestData,
-      key: `${Date.now()}`,
-    };
-
-    await DocsDB.cacheResponse(
-      serializeRequest.key,
-      serializeRequest,
-      'doc-mutation',
-    );
+    await this.queueMutation(this.initialRequest);
 
     /**
      * Delete item in the cache
      */
     const db = await DocsDB.open();
     await db.delete('doc-item', request.url);
+    await db.delete('doc-content', `${request.url}content/`);
 
     /**
      * Delete entry from the cache list.
@@ -378,20 +399,7 @@ export class ApiPlugin implements WorkboxPlugin {
     /**
      * Queue the request in the cache 'doc-mutation' to sync it later.
      */
-    const requestData = (
-      await RequestSerializer.fromRequest(this.initialRequest)
-    ).toObject();
-
-    const serializeRequest: DBRequest = {
-      requestData,
-      key: `${Date.now()}`,
-    };
-
-    await DocsDB.cacheResponse(
-      serializeRequest.key,
-      serializeRequest,
-      'doc-mutation',
-    );
+    await this.queueMutation(this.initialRequest);
 
     /**
      * Update the cache item with the new data.
@@ -487,6 +495,38 @@ export class ApiPlugin implements WorkboxPlugin {
         ...(entry.etag && { ETag: entry.etag }),
         ...(entry.lastModified && { 'Last-Modified': entry.lastModified }),
       },
+    });
+  };
+
+  /**
+   * When the content update fails, we save the new content in the cache, and we will sync it later with the SyncManager.
+   * We return a 204 to the client to say that the update is successful, and we update the content in the cache so the
+   * client can see the new content while offline.
+   */
+  private handlerDidErrorContentUpdate = async (request: Request) => {
+    const db = await DocsDB.open();
+    const entry = await db.get('doc-content', request.url);
+    db.close();
+
+    if (!entry || !this.initialRequest) {
+      return new Response('Not found', { status: 404 });
+    }
+
+    await this.queueMutation(this.initialRequest);
+
+    const bodyMutate = (await this.initialRequest
+      .clone()
+      .json()) as Partial<UpdateDocContentParams>;
+    const newContent = bodyMutate.content ?? entry.content;
+    await DocsDB.cacheResponse(
+      request.url,
+      { etag: '', lastModified: '', content: newContent },
+      'doc-content',
+    );
+
+    return new Response(null, {
+      status: 204,
+      statusText: 'No Content',
     });
   };
 }

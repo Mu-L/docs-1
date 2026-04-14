@@ -7,6 +7,7 @@ import {
   useDocContent,
 } from '@/docs/doc-management/api/useDocContent';
 import { useProviderStore } from '@/docs/doc-management/stores/useProviderStore';
+import { useIsOffline } from '@/features/service-worker/hooks/useOffline';
 import { useBroadcastStore } from '@/stores/useBroadcastStore';
 
 import { KEY_DOC } from '../api';
@@ -20,10 +21,12 @@ export const useCollaboration = (room: string) => {
     provider,
     createProvider,
     destroyProvider,
+    setReady,
     isReady,
     hasLostConnection,
     resetLostConnection,
   } = useProviderStore();
+  const isOffline = useIsOffline((state) => state.isOffline);
   const { data: docContent } = useDocContent(
     { id: room },
     {
@@ -31,6 +34,17 @@ export const useCollaboration = (room: string) => {
       queryKey: [KEY_DOC_CONTENT, { id: room }],
     },
   );
+
+  /**
+   * When offline, the WebSocket never connects so the provider would stay
+   * in a non-ready state for a long time. Immediately mark it as ready so
+   * the editor can render with the cached content.
+   */
+  useEffect(() => {
+    if (isOffline && provider && !isReady) {
+      setReady(true);
+    }
+  }, [isOffline, isReady, provider, setReady]);
 
   /**
    * When the provider detects a lost connection, we invalidate the document query to trigger a refetch.

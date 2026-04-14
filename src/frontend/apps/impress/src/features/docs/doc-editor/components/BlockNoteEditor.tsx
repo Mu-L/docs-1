@@ -22,7 +22,7 @@ import * as Y from 'yjs';
 import { Box, TextErrors } from '@/components';
 import { useConfig } from '@/core';
 import { useCunninghamTheme } from '@/cunningham';
-import { Doc, useProviderStore } from '@/docs/doc-management';
+import { Doc } from '@/docs/doc-management';
 import { avatarUrlFromName, useAuth } from '@/features/auth';
 import { useAnalytics } from '@/libs/Analytics';
 
@@ -88,13 +88,12 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
   const { user } = useAuth();
   const { setEditor } = useEditorStore();
   const { themeTokens } = useCunninghamTheme();
-  const { isSynced: isConnectedToCollabServer } = useProviderStore();
   const refEditorContainer = useRef<HTMLDivElement>(null);
   const canSeeComment = doc.abilities.comment;
   // Determine if comments should be visible in the UI
   const showComments = canSeeComment;
 
-  useSaveDoc(doc.id, provider.document, isConnectedToCollabServer);
+  useSaveDoc(doc.id, provider.document);
   const { i18n, t } = useTranslation();
   const langLocalesBN =
     !i18n.resolvedLanguage || !(i18n.resolvedLanguage in localesBN)
