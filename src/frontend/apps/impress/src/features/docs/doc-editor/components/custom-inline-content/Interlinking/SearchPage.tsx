@@ -15,30 +15,21 @@ import {
   Card,
   Icon,
   QuickSearch,
-  QuickSearchGroup,
   QuickSearchItemContent,
   Text,
 } from '@/components';
-import { useCunninghamTheme } from '@/cunningham';
 import {
   DocsBlockSchema,
   DocsInlineContentSchema,
   DocsStyleSchema,
 } from '@/docs/doc-editor';
 import FoundPageIcon from '@/docs/doc-editor/assets/doc-found.svg';
-import AddPageIcon from '@/docs/doc-editor/assets/doc-plus.svg';
-import {
-  Doc,
-  getEmojiAndTitle,
-  useCreateChildDocTree,
-  useDocStore,
-  useTrans,
-} from '@/docs/doc-management';
+import { Doc, getEmojiAndTitle, useTrans } from '@/docs/doc-management';
 import { DocSearchContent, DocSearchTarget } from '@/docs/doc-search';
 import { useResponsiveStore } from '@/stores';
 
 const inputStyle = css`
-  background-color: var(--c--globals--colors--gray-100);
+  background-color: transparent;
   border: none;
   outline: none;
   color: var(--c--globals--colors--gray-700);
@@ -76,15 +67,12 @@ export const SearchPage = ({
   trigger,
   updateInlineContent,
 }: SearchPageProps) => {
-  const { colorsTokens } = useCunninghamTheme();
   const editor = useBlockNoteEditor<
     DocsBlockSchema,
     DocsInlineContentSchema,
     DocsStyleSchema
   >();
   const { t } = useTranslation();
-  const { currentDoc } = useDocStore();
-  const createChildDoc = useCreateChildDocTree(currentDoc?.id);
   const inputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
   const { isDesktop } = useResponsiveStore();
@@ -174,11 +162,11 @@ export const SearchPage = ({
           <Box
             as="span"
             className="inline-content"
-            $background={colorsTokens['gray-100']}
-            $color="var(--c--globals--colors--gray-700)"
+            $background="var(--c--contextuals--background--semantic--overlay--primary)"
+            $color="var(--c--contextuals--content--semantic--neutral--primary)"
             $direction="row"
             $radius="3px"
-            $padding="1px"
+            $padding="2px"
             $display="inline-flex"
             tabIndex={-1} // Ensure the span is focusable
           >
@@ -196,6 +184,7 @@ export const SearchPage = ({
               aria-autocomplete="list"
               aria-controls={dropdownId}
               $padding={{ left: '3px' }}
+              placeholder={t('mention a sub-doc...')}
               $css={inputStyle}
               ref={inputRef}
               $display="inline-flex"
@@ -229,13 +218,22 @@ export const SearchPage = ({
 
               & .quick-search-container [cmdk-root] {
                 border-radius: inherit;
+                background: transparent;
               }
             `}
           >
-            <QuickSearch showInput={false}>
+            <QuickSearch showInput={false} isSelectByDefault>
               <Card
                 $css={css`
-                  box-shadow: 0 0 3px 0px var(--c--globals--colors--gray-200);
+                  box-shadow: 0 0 6px 0 rgba(0, 0, 145, 0.1);
+                  border: 1px solid
+                    var(--c--contextuals--border--surface--primary);
+                  background: var(
+                    --c--contextuals--background--surface--primary
+                  );
+                  .quick-search-container & [cmdk-group] {
+                    margin-top: 0 !important;
+                  }
                   & > div {
                     margin-top: var(--c--globals--spacings--0);
                     & [cmdk-group-heading] {
@@ -257,15 +255,27 @@ export const SearchPage = ({
                     & .--docs--doc-search-item > div {
                       gap: 0.8rem;
                     }
+
+                    & .--docs--quick-search-group-title {
+                      font-size: 12px;
+                      margin: var(--c--globals--spacings--sm);
+                      margin-bottom: var(--c--globals--spacings--xxs);
+                    }
+
+                    & .--docs--quick-search-group-empty {
+                      margin: var(--c--globals--spacings--sm);
+                    }
                   }
                 `}
-                $margin={{ top: '0.5rem' }}
+                $margin="sm"
+                $padding="none"
               >
                 <DocSearchContent
-                  groupName={t('Select a document')}
+                  groupName={t('Link a doc')}
                   search={search}
                   target={DocSearchTarget.CURRENT}
                   parentPath={treeContext?.root?.path}
+                  isSearchNotMandatory
                   onSelect={(doc) => {
                     if (!isEditable) {
                       return;
@@ -341,52 +351,6 @@ export const SearchPage = ({
                         }
                       />
                     );
-                  }}
-                />
-                <QuickSearchGroup
-                  group={{
-                    groupName: '',
-                    elements: [],
-                    endActions: [
-                      {
-                        onSelect: createChildDoc,
-                        content: (
-                          <Box
-                            $css={css`
-                              border-top: 1px solid
-                                var(--c--globals--colors--gray-200);
-                            `}
-                            $width="100%"
-                          >
-                            <Box
-                              $direction="row"
-                              $gap="0.4rem"
-                              $align="center"
-                              $padding={{
-                                vertical: '0.5rem',
-                                horizontal: '0.3rem',
-                              }}
-                              $css={css`
-                                &:hover {
-                                  background-color: var(
-                                    --c--globals--colors--gray-100
-                                  );
-                                }
-                              `}
-                            >
-                              <AddPageIcon />
-                              <Text
-                                $size="sm"
-                                $color="var(--c--globals--colors--gray-1000)"
-                                contentEditable={false}
-                              >
-                                {t('New sub-doc')}
-                              </Text>
-                            </Box>
-                          </Box>
-                        ),
-                      },
-                    ],
                   }}
                 />
               </Card>

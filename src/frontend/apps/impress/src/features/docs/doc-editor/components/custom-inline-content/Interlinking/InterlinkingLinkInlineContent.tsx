@@ -9,8 +9,7 @@ import { useEffect } from 'react';
 import { css } from 'styled-components';
 import { validate as uuidValidate } from 'uuid';
 
-import { BoxButton, Text } from '@/components';
-import { useCunninghamTheme } from '@/cunningham';
+import { Box, BoxButton, Text } from '@/components';
 import SelectedPageIcon from '@/docs/doc-editor/assets/doc-selected.svg';
 import { getEmojiAndTitle, useDoc } from '@/docs/doc-management/';
 
@@ -120,8 +119,6 @@ export const LinkSelected = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc?.title, docId, isEditable]);
 
-  const { colorsTokens } = useCunninghamTheme();
-
   const { emoji, titleWithoutEmoji } = getEmojiAndTitle(title);
   const router = useRouter();
   const href = `/docs/${docId}/`;
@@ -154,6 +151,7 @@ export const LinkSelected = ({
       onClick={handleClick}
       onAuxClick={handleAuxClick}
       draggable="false"
+      $height="28px"
       $css={css`
         display: inline;
         padding: 0.1rem 0.4rem;
@@ -179,18 +177,38 @@ export const LinkSelected = ({
       {emoji ? (
         <Text $size="16px">{emoji}</Text>
       ) : (
-        <SelectedPageIcon width={11.5} color={colorsTokens['brand-400']} />
+        <SelectedPageIcon
+          width={11.5}
+          color="var(--c--contextuals--content--semantic--brand--tertiary)"
+        />
       )}
       <Text
         $weight="500"
         spellCheck="false"
         $size="16px"
         $display="inline"
+        $position="relative"
         $css={css`
           margin-left: 2px;
         `}
       >
-        {titleWithoutEmoji}
+        <Box
+          className="--docs-interlinking-underline"
+          as="span"
+          $height="1px"
+          $width="100%"
+          $background="var(--c--contextuals--border--semantic--neutral--tertiary)"
+          $position="absolute"
+          $hasTransition
+          $radius="2px"
+          $css={css`
+            left: 0;
+            bottom: 0px;
+          `}
+        />
+        <Box as="span" $zIndex="1" $position="relative">
+          {titleWithoutEmoji}
+        </Box>
       </Text>
     </BoxButton>
   );
