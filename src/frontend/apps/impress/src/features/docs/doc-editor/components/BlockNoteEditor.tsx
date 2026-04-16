@@ -53,10 +53,7 @@ const AIMenu = BlockNoteAI?.AIMenu;
 const AIMenuController = BlockNoteAI?.AIMenuController;
 const useAI = BlockNoteAI?.useAI;
 const localesBNAI = BlockNoteAI?.localesAI || {};
-import {
-  InterlinkingLinkInlineContent,
-  InterlinkingSearchInlineContent,
-} from './custom-inline-content';
+import { InterlinkingLinkInlineContent } from './custom-inline-content';
 import XLMultiColumn from './xl-multi-column';
 
 const localesBNMultiColumn = XLMultiColumn?.locales;
@@ -74,7 +71,6 @@ const baseBlockNoteSchema = withPageBreak(
     },
     inlineContentSpecs: {
       ...defaultInlineContentSpecs,
-      interlinkingSearchInline: InterlinkingSearchInlineContent,
       interlinkingLinkInline: InterlinkingLinkInlineContent,
     },
   }),

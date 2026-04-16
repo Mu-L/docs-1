@@ -1,8 +1,5 @@
-import {
-  PartialCustomInlineContentFromConfig,
-  StyleSchema,
-} from '@blocknote/core';
-import { useBlockNoteEditor } from '@blocknote/react';
+import { StyleSchema } from '@blocknote/core';
+import { ReactCustomInlineContentRenderProps } from '@blocknote/react';
 import { useTreeContext } from '@gouvfr-lasuite/ui-kit';
 import { Popover } from '@mantine/core';
 import type { KeyboardEvent } from 'react';
@@ -18,15 +15,13 @@ import {
   QuickSearchItemContent,
   Text,
 } from '@/components';
-import {
-  DocsBlockSchema,
-  DocsInlineContentSchema,
-  DocsStyleSchema,
-} from '@/docs/doc-editor';
 import FoundPageIcon from '@/docs/doc-editor/assets/doc-found.svg';
+import { DocsBlockNoteEditor } from '@/docs/doc-editor/types';
 import { Doc, getEmojiAndTitle, useTrans } from '@/docs/doc-management';
 import { DocSearchContent, DocSearchTarget } from '@/docs/doc-search';
 import { useResponsiveStore } from '@/stores';
+
+import { InterlinkingLinkInlineContentType } from './InterlinkingLinkInlineContent';
 
 const inputStyle = css`
   background-color: transparent;
@@ -38,40 +33,18 @@ const inputStyle = css`
   font-family: 'Inter';
 `;
 
-type SearchPageProps = {
-  trigger: '/' | '@';
-  updateInlineContent: (
-    update: PartialCustomInlineContentFromConfig<
-      {
-        type: 'interlinkingSearchInline';
-        propSchema: {
-          disabled: {
-            default: false;
-            values: [true, false];
-          };
-          trigger: {
-            default: '/';
-            values: ['/', '@'];
-          };
-        };
-        content: 'styled';
-      },
-      StyleSchema
-    >,
-  ) => void;
-  contentRef: (node: HTMLElement | null) => void;
-};
+type ReactInterlinkingSearch = ReactCustomInlineContentRenderProps<
+  InterlinkingLinkInlineContentType,
+  StyleSchema
+>;
 
 export const SearchPage = ({
   contentRef,
-  trigger,
   updateInlineContent,
-}: SearchPageProps) => {
-  const editor = useBlockNoteEditor<
-    DocsBlockSchema,
-    DocsInlineContentSchema,
-    DocsStyleSchema
-  >();
+  editor,
+  inlineContent,
+}: ReactInterlinkingSearch) => {
+  const trigger = inlineContent.props.trigger;
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
@@ -107,16 +80,19 @@ export const SearchPage = ({
     }
 
     updateInlineContent({
-      type: 'interlinkingSearchInline',
+      type: 'interlinkingLinkInline',
       props: {
         disabled: true,
-        trigger,
       },
     });
 
-    contentRef(null);
     editor.focus();
-    editor.insertInlineContent([insertContent]);
+
+    if (insertContent) {
+      contentRef(null);
+      editor.focus();
+      (editor as DocsBlockNoteEditor).insertInlineContent([insertContent]);
+    }
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -171,7 +147,7 @@ export const SearchPage = ({
             tabIndex={-1} // Ensure the span is focusable
           >
             {' '}
-            <Box as="span" aria-hidden="true">
+            <Box as="span" aria-hidden="true" $height="25px">
               {trigger}
             </Box>
             <Box
@@ -282,25 +258,14 @@ export const SearchPage = ({
                     }
 
                     updateInlineContent({
-                      type: 'interlinkingSearchInline',
+                      type: 'interlinkingLinkInline',
                       props: {
-                        disabled: true,
-                        trigger,
+                        docId: doc.id,
+                        title: doc.title || untitledDocument,
                       },
                     });
 
                     contentRef(null);
-
-                    editor.insertInlineContent([
-                      {
-                        type: 'interlinkingLinkInline',
-                        props: {
-                          docId: doc.id,
-                          title: doc.title || untitledDocument,
-                        },
-                      },
-                    ]);
-
                     editor.focus();
                   }}
                   renderSearchElement={(doc) => {

@@ -730,7 +730,7 @@ test.describe('Doc Editor', () => {
     await page.getByText('Link a doc').first().click();
 
     const input = page.locator(
-      "span[data-inline-content-type='interlinkingSearchInline'] input",
+      "span[data-inline-content-type='interlinkingLinkInline'] input",
     );
     const searchContainer = page.locator('.quick-search-container');
 
