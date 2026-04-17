@@ -162,7 +162,10 @@ export const QuickSearchGroupInvitation = ({
   }
 
   return (
-    <Box aria-label={t('List invitation card')}>
+    <Box
+      aria-label={t('List invitation card')}
+      $padding={{ horizontal: 'base' }}
+    >
       <QuickSearchGroup
         group={invitationsData}
         renderElement={(invitation) => (

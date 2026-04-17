@@ -6,7 +6,7 @@ import {
 } from '@gouvfr-lasuite/cunningham-react';
 import { MouseEventHandler, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { createGlobalStyle } from 'styled-components';
+import { createGlobalStyle, css } from 'styled-components';
 
 import {
   Box,
@@ -20,6 +20,7 @@ import { QuickSearchData, QuickSearchGroup } from '@/components/quick-search';
 import { useCunninghamTheme } from '@/cunningham';
 import { AccessRequest, Doc, Role } from '@/docs/doc-management/';
 import { useAuth } from '@/features/auth';
+import { useResponsiveStore } from '@/stores';
 
 import {
   useAcceptDocAccessRequest,
@@ -33,8 +34,12 @@ import { DocRoleDropdown } from './DocRoleDropdown';
 import { SearchUserRow } from './SearchUserRow';
 
 const QuickSearchGroupAccessRequestStyle = createGlobalStyle`
-  .--docs--share-access-request [cmdk-item][data-selected='true'] {
-    background: inherit
+  .quick-search-container .--docs--share-access-request [cmdk-item]:hover, 
+  .quick-search-container .--docs--share-access-request [cmdk-item][data-selected='true'] {
+      background: inherit;
+  }
+  .--docs--doc-share-access-request-item:hover {
+    background: var(--c--contextuals--background--semantic--contextual--primary);
   }
 `;
 
@@ -45,6 +50,7 @@ type Props = {
 
 const DocShareAccessRequestItem = ({ doc, accessRequest }: Props) => {
   const { t } = useTranslation();
+  const { isSmallMobile } = useResponsiveStore();
   const { toast } = useToastProvider();
   const { spacingsTokens } = useCunninghamTheme();
   const { mutate: acceptDocAccessRequests } = useAcceptDocAccessRequest();
@@ -67,6 +73,15 @@ const DocShareAccessRequestItem = ({ doc, accessRequest }: Props) => {
       $width="100%"
       data-testid={`doc-share-access-request-row-${accessRequest.user.email}`}
       className="--docs--doc-share-access-request-item"
+      $css={css`
+        & .--docs--quick-search-item-content {
+          flex-wrap: wrap;
+
+          .--docs--quick-search-item-content-right {
+            margin-left: auto;
+          }
+        }
+      `}
     >
       <SearchUserRow
         alwaysShowRight={true}
@@ -84,7 +99,7 @@ const DocShareAccessRequestItem = ({ doc, accessRequest }: Props) => {
             />
             <Button
               color="brand"
-              variant="tertiary"
+              variant="secondary"
               onClick={() =>
                 acceptDocAccessRequests({
                   docId: doc.id,
@@ -92,7 +107,7 @@ const DocShareAccessRequestItem = ({ doc, accessRequest }: Props) => {
                   role,
                 })
               }
-              size="small"
+              size={isSmallMobile ? 'nano' : 'small'}
             >
               {t('Approve')}
             </Button>
@@ -153,6 +168,7 @@ export const QuickSearchGroupAccessRequest = ({
     <Box
       aria-label={t('List request access card')}
       className="--docs--share-access-request"
+      $padding={{ horizontal: 'base' }}
     >
       <QuickSearchGroupAccessRequestStyle />
       <QuickSearchGroup

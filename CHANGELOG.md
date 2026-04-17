@@ -6,16 +6,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- ♿️(frontend) structure correctly 5xx error alerts #2128
+- ♿️(frontend) make doc search result labels uniquely identifiable #2212
+
 ### Fixed
 
 - 🚸(frontend) redirect on current url tab after 401 #2197
 - 🐛(frontend) abort check media status unmount #2194
 - ✨(backend) order pinned documents by last updated at #2028
-
-### Changed
-
-- ♿️(frontend) structure correctly 5xx error alerts #2128
-- ♿️(frontend) make doc search result labels uniquely identifiable #2212
+- 🛂(frontend) fix cannot manage member on small screen #2226
 
 ## [v4.8.6] - 2026-04-08
 
