@@ -42,7 +42,8 @@ export const LeftPanelDesktop = () => {
    */
   const showHelpMenu =
     config?.theme_customization?.onboarding?.enabled ||
-    !!config?.CRISP_WEBSITE_ID;
+    !!config?.CRISP_WEBSITE_ID ||
+    !!config?.theme_customization?.help?.documentation_url;
 
   return (
     <Box

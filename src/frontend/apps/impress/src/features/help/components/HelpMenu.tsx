@@ -3,15 +3,16 @@ import {
   ButtonProps,
   useModal,
 } from '@gouvfr-lasuite/cunningham-react';
-import { DropdownMenu } from '@gouvfr-lasuite/ui-kit';
+import { DropdownMenu, DropdownMenuOption } from '@gouvfr-lasuite/ui-kit';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { css } from 'styled-components';
 
 import BubbleTextIcon from '@/assets/icons/ui-kit/bubble-text.svg';
+import DocIcon from '@/assets/icons/ui-kit/doc.svg';
 import HelpIcon from '@/assets/icons/ui-kit/question-mark.svg';
 import WandAndStarsIcon from '@/assets/icons/ui-kit/wand-and-stars.svg';
-import { Box, DropdownMenuOption } from '@/components';
+import { Box } from '@/components';
 import { useConfig } from '@/core';
 import { openCrispChat } from '@/services';
 
@@ -27,6 +28,7 @@ export const HelpMenu = ({
   const modalOnbording = useModal();
   const { data: config } = useConfig();
   const onboardingEnabled = config?.theme_customization?.onboarding?.enabled;
+  const documentationUrl = config?.theme_customization?.help?.documentation_url;
   const crispEnabled = !!config?.CRISP_WEBSITE_ID;
 
   const toggleMenu = useCallback(() => {
@@ -39,16 +41,26 @@ export const HelpMenu = ({
         label: t('Get Support'),
         icon: <BubbleTextIcon aria-hidden="true" width="24" height="24" />,
         callback: openCrispChat,
-        show: crispEnabled,
+        isHidden: !crispEnabled,
+      },
+      {
+        label: t('Documentation'),
+        icon: <DocIcon aria-hidden="true" width="24" height="24" />,
+        callback: () => {
+          if (documentationUrl) {
+            window.open(documentationUrl, '_blank', 'noopener,noreferrer');
+          }
+        },
+        isHidden: !documentationUrl,
       },
       {
         label: t('Onboarding'),
         icon: <WandAndStarsIcon aria-hidden="true" width="24" height="24" />,
         callback: modalOnbording.open,
-        show: onboardingEnabled,
+        isHidden: !onboardingEnabled,
       },
     ],
-    [modalOnbording.open, t, onboardingEnabled, crispEnabled],
+    [t, crispEnabled, documentationUrl, modalOnbording.open, onboardingEnabled],
   );
 
   return (

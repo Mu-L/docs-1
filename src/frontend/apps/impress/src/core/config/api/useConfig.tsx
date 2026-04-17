@@ -16,17 +16,20 @@ interface ThemeCustomization {
     light: LinkHTMLAttributes<HTMLLinkElement>;
     dark: LinkHTMLAttributes<HTMLLinkElement>;
   };
-  onboarding?: {
-    enabled: true;
-    learn_more_url?: string;
-  };
   footer?: FooterType;
+  header?: HeaderType;
+  help: {
+    documentation_url?: string;
+  };
   home: {
     'with-proconnect'?: boolean;
     'icon-banner'?: Imagetype;
   };
+  onboarding?: {
+    enabled: true;
+    learn_more_url?: string;
+  };
   translations?: Resource;
-  header?: HeaderType;
   waffle?: WaffleType;
 }
 
