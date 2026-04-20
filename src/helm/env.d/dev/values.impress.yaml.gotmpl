@@ -100,10 +100,9 @@ backend:
     - uvicorn
     - --app-dir=/app
     - --host=0.0.0.0
-    - --timeout-graceful-shutdown=300
-    - --limit-max-requests=20000
     - --lifespan=off
     - --reload
+    - --reload-dir=/app
     - "impress.asgi:application"
 
   createsuperuser:

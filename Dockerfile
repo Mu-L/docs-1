@@ -134,7 +134,15 @@ ENV DB_HOST=postgresql \
   DB_PORT=5432
 
 # Run django development server
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD [\
+  "uvicorn",\
+  "--app-dir=/app",\
+  "--host=0.0.0.0",\
+  "--lifespan=off",\
+  "--reload",\
+  "--reload-dir=/app",\
+  "impress.asgi:application"\
+  ]
 
 # ---- Production image ----
 FROM core AS backend-production
