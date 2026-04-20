@@ -52,64 +52,68 @@ export class ApiPlugin implements WorkboxPlugin {
     request,
     response,
   }) => {
-    // For content requests, a 304 means the document hasn't changed:
-    // transparently serve the cached version from IDB.
-    if (this.options.type === 'content' && response.status === 304) {
-      const db = await DocsDB.open();
-      const entry = await db.get('doc-content', request.url);
-      db.close();
-      if (entry) {
-        return new Response(entry.content, {
-          status: 200,
-          statusText: 'OK',
-          headers: {
-            'Content-Type': 'text/plain',
-            ...(entry.etag && { ETag: entry.etag }),
-            ...(entry.lastModified && {
-              'Last-Modified': entry.lastModified,
-            }),
-          },
-        });
+    try {
+      // For content requests, a 304 means the document hasn't changed:
+      // transparently serve the cached version from IDB.
+      if (this.options.type === 'content' && response.status === 304) {
+        const db = await DocsDB.open();
+        const entry = await db.get('doc-content', request.url);
+        db.close();
+        if (entry) {
+          return new Response(entry.content, {
+            status: 200,
+            statusText: 'OK',
+            headers: {
+              'Content-Type': 'text/plain',
+              ...(entry.etag && { ETag: entry.etag }),
+              ...(entry.lastModified && {
+                'Last-Modified': entry.lastModified,
+              }),
+            },
+          });
+        }
       }
-    }
 
-    if (response.status !== 200) {
-      return response;
-    }
-
-    if (this.options.type === 'list' || this.options.type === 'item') {
-      const tableName = this.options.tableName;
-      const body = (await response.clone().json()) as DocsResponse | Doc;
-      await DocsDB.cacheResponse(request.url, body, tableName);
-    } else if (this.options.type === 'content') {
-      // Cache the content response with its ETag / Last-Modified to be
-      // able to use it for conditional requests and offline access.
-      const content = await response.clone().text();
-      const etag = response.headers.get('ETag') ?? '';
-      const lastModified = response.headers.get('Last-Modified') ?? '';
-      await DocsDB.cacheResponse(
-        request.url,
-        { etag, lastModified, content },
-        'doc-content',
-      );
-    } else if (this.options.type === 'update') {
-      const db = await DocsDB.open();
-      const storedResponse = await db.get('doc-item', request.url);
-
-      if (!storedResponse || !this.initialRequest) {
+      if (response.status !== 200) {
         return response;
       }
 
-      const bodyMutate = (await this.initialRequest
-        .clone()
-        .json()) as Partial<Doc>;
+      if (this.options.type === 'list' || this.options.type === 'item') {
+        const tableName = this.options.tableName;
+        const body = (await response.clone().json()) as DocsResponse | Doc;
+        await DocsDB.cacheResponse(request.url, body, tableName);
+      } else if (this.options.type === 'content') {
+        // Cache the content response with its ETag / Last-Modified to be
+        // able to use it for conditional requests and offline access.
+        const content = await response.clone().text();
+        const etag = response.headers.get('ETag') ?? '';
+        const lastModified = response.headers.get('Last-Modified') ?? '';
+        await DocsDB.cacheResponse(
+          request.url,
+          { etag, lastModified, content },
+          'doc-content',
+        );
+      } else if (this.options.type === 'update') {
+        const db = await DocsDB.open();
+        const storedResponse = await db.get('doc-item', request.url);
 
-      const newResponse = {
-        ...storedResponse,
-        ...bodyMutate,
-      };
+        if (!storedResponse || !this.initialRequest) {
+          return response;
+        }
 
-      await DocsDB.cacheResponse(request.url, newResponse, 'doc-item');
+        const bodyMutate = (await this.initialRequest
+          .clone()
+          .json()) as Partial<Doc>;
+
+        const newResponse = {
+          ...storedResponse,
+          ...bodyMutate,
+        };
+
+        await DocsDB.cacheResponse(request.url, newResponse, 'doc-item');
+      }
+    } catch (error) {
+      console.error('SW: ApiPlugin fetchDidSucceed DB error', error);
     }
 
     return response;
@@ -143,17 +147,21 @@ export class ApiPlugin implements WorkboxPlugin {
     // For content requests, add If-None-Match / If-Modified-Since from IDB
     // so the backend can return a 304 when the document hasn't changed.
     if (this.options.type === 'content') {
-      const db = await DocsDB.open();
-      const entry = await db.get('doc-content', request.url);
-      db.close();
-      if (entry?.etag || entry?.lastModified) {
-        const headers = new Headers(request.headers);
-        if (entry.etag) {
-          headers.set('If-None-Match', entry.etag);
-        } else {
-          headers.set('If-Modified-Since', entry.lastModified);
+      try {
+        const db = await DocsDB.open();
+        const entry = await db.get('doc-content', request.url);
+        db.close();
+        if (entry?.etag || entry?.lastModified) {
+          const headers = new Headers(request.headers);
+          if (entry.etag) {
+            headers.set('If-None-Match', entry.etag);
+          } else {
+            headers.set('If-Modified-Since', entry.lastModified);
+          }
+          return new Request(request, { headers });
         }
-        return new Request(request, { headers });
+      } catch (error) {
+        console.error('SW: ApiPlugin requestWillFetch content error', error);
       }
     }
 
@@ -165,7 +173,12 @@ export class ApiPlugin implements WorkboxPlugin {
    */
   handlerDidError: WorkboxPlugin['handlerDidError'] = async ({ request }) => {
     if (!this.isFetchDidFailed) {
-      return Promise.resolve(ApiPlugin.getApiCatchHandler());
+      // it could be a plugin error, not a network error, so we try to do the request without the plugin.
+      try {
+        return await fetch(request);
+      } catch {
+        return ApiPlugin.getApiCatchHandler();
+      }
     }
 
     switch (this.options.type) {

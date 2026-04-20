@@ -142,18 +142,33 @@ export class DocsDB {
     key: string,
     body: DocsResponse | Doc | DBRequest | DocContentCacheEntry,
     tableName: TableName,
+    isRetry = false,
   ): Promise<void> {
     const db = await DocsDB.open();
 
     try {
       await db.put(tableName, body, key);
     } catch (error) {
-      console.error(
-        'SW: Failed to save response in IndexedDB',
-        error,
-        key,
-        body,
-      );
+      db.close();
+      // If the store is missing and we haven't retried yet, reset the DB once
+      // (handles a PR that added a store without a version bump).
+      // The isRetry guard prevents an infinite loop if the store name is invalid.
+      if (!isRetry && !db.objectStoreNames.contains(tableName)) {
+        console.warn(
+          'SW: Missing object store, resetting IndexedDB and retrying',
+          tableName,
+        );
+        await deleteDB(DocsDB.DBNAME);
+        await DocsDB.cacheResponse(key, body, tableName, true);
+      } else {
+        console.error(
+          'SW: Failed to save response in IndexedDB',
+          error,
+          key,
+          body,
+        );
+      }
+      return;
     }
 
     db.close();
