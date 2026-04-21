@@ -52,7 +52,7 @@ test.describe('Doc Create', () => {
     ).toBeVisible();
   });
 
-  test('it creates a doc with link "/doc/new/', async ({
+  test('it creates a doc with link "/docs/new/"', async ({
     page,
     browserName,
   }) => {

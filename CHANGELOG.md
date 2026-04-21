@@ -17,6 +17,7 @@ and this project adheres to
 - 🚸(frontend) redirect on current url tab after 401 #2197
 - 🐛(frontend) abort check media status unmount #2194
 - ✨(backend) order pinned documents by last updated at #2028
+- 🐛(frontend) fix app shallow reload #2231
 - 🐛(frontend) fix interlinking modal clipping #2213
 - 🛂(frontend) fix cannot manage member on small screen #2226
 - 🐛(backend) load jwks url when OIDC_RS_PRIVATE_KEY_STR is set
