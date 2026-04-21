@@ -11,6 +11,7 @@ import { createGlobalStyle, css } from 'styled-components';
 import {
   Box,
   BoxButton,
+  HorizontalSeparator,
   Icon,
   LoadMoreText,
   Loading,
@@ -165,19 +166,25 @@ export const QuickSearchGroupAccessRequest = ({
   }
 
   return (
-    <Box
-      aria-label={t('List request access card')}
-      className="--docs--share-access-request"
-      $padding={{ horizontal: 'base' }}
-    >
-      <QuickSearchGroupAccessRequestStyle />
-      <QuickSearchGroup
-        group={accessRequestsData}
-        renderElement={(accessRequest) => (
-          <DocShareAccessRequestItem doc={doc} accessRequest={accessRequest} />
-        )}
-      />
-    </Box>
+    <>
+      <Box
+        aria-label={t('List request access card')}
+        className="--docs--share-access-request"
+        $padding={{ horizontal: 'base' }}
+      >
+        <QuickSearchGroupAccessRequestStyle />
+        <QuickSearchGroup
+          group={accessRequestsData}
+          renderElement={(accessRequest) => (
+            <DocShareAccessRequestItem
+              doc={doc}
+              accessRequest={accessRequest}
+            />
+          )}
+        />
+      </Box>
+      <HorizontalSeparator $margin={{ vertical: 'sm' }} />
+    </>
   );
 };
 

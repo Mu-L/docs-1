@@ -291,9 +291,7 @@ export const DocShareModal = ({ doc, onClose, isRootDoc = true }: Props) => {
                   {showMemberSection && isRootDoc && (
                     <Box $padding={{ top: 'base' }}>
                       <QuickSearchGroupAccessRequest doc={doc} />
-                      <HorizontalSeparator $margin={{ vertical: 'sm' }} />
                       <QuickSearchGroupInvitation doc={doc} />
-                      <HorizontalSeparator $margin={{ vertical: 'sm' }} />
                       <QuickSearchGroupMember doc={doc} />
                     </Box>
                   )}
