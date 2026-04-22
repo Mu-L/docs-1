@@ -1850,8 +1850,11 @@ class DocumentViewSet(
 
         return drf.response.Response("authorized", headers=request.headers, status=200)
 
-    def _content_patch(self, request, document):
+    @drf.decorators.action(detail=True, methods=["patch"])
+    def content(self, request, *args, **kwargs):
         """Update the raw Yjs content of a document stored in S3."""
+        document = self.get_object()
+
         serializer = serializers.DocumentContentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -1913,8 +1916,26 @@ class DocumentViewSet(
 
         return drf_response.Response(status=status.HTTP_204_NO_CONTENT)
 
-    def _content_retrieve(self, request, document):
-        """Retrieve the raw content file ni s3 and stream it."""
+    @content.mapping.get
+    def content_retrieve(self, request, *args, **kwargs):
+        """
+        Retrieve the raw content file from s3 and stream it.
+
+        We implement a HTTP cache based on the ETag and LastModified headers.
+        We retrieve the ETag and LastModified from the S3 head operation, save them in cache to
+        reuse them in future requests.
+        We check in the request if the ETag is present in the If-None-Match header and if it's the
+        same as the one from the S3 head operation, we return a 304 response.
+        If the ETag is not present or not the same, we do the same check based on the LastModifed
+        value if present in the If-Modified-Since header.
+        """
+        document = self.get_object()
+        # The S3 call to fetch the document can take time and the database
+        # connection is useless in this process. Hence we are closing it now
+        # to prevent having a massive number of database connections during
+        # the web-socket re-connection burst.
+        connection.close()
+
         if not (
             content_metadata := cache.get(
                 utils.get_content_metadata_cache_key(document.id)
@@ -1992,24 +2013,6 @@ class DocumentViewSet(
         response["Cache-Control"] = "private, no-cache"
 
         return response
-
-    @drf.decorators.action(detail=True, methods=["patch", "get"], url_path="content")
-    def content(self, request, *args, **kwargs):
-        """Retrieve or update content stored in s3."""
-        document = self.get_object()
-
-        if request.method == "PATCH":
-            return self._content_patch(request, document)
-
-        if request.method == "GET":
-            # The S3 call to fetch the document can take time and the database
-            # connection is useless in this process. Hence we are closing it now
-            # to prevent having a massive number of database connections during
-            # the web-socket re-connection burst.
-            connection.close()
-            return self._content_retrieve(request, document)
-
-        return drf_response.Response(status=status.HTTP_501_NOT_IMPLEMENTED)
 
     @drf.decorators.action(detail=True, methods=["get"], url_path="media-check")
     def media_check(self, request, *args, **kwargs):
