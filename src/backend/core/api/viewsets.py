@@ -1117,30 +1117,6 @@ class DocumentViewSet(
         methods=["get"],
         ordering=["path"],
     )
-    def descendants(self, request, *args, **kwargs):
-        """Deprecated endpoint to list descendants of a document."""
-        logger.warning(
-            "The 'descendants' endpoint is deprecated and will be removed in a future release. "
-            "The search endpoint should be used for all document retrieval use cases."
-        )
-        document = self.get_object()
-
-        queryset = document.get_descendants().filter(ancestors_deleted_at__isnull=True)
-        queryset = self.filter_queryset(queryset)
-
-        filterset = DocumentFilter(request.GET, queryset=queryset)
-        if not filterset.is_valid():
-            raise drf.exceptions.ValidationError(filterset.errors)
-
-        queryset = filterset.qs
-
-        return self.get_response_for_queryset(queryset)
-
-    @drf.decorators.action(
-        detail=True,
-        methods=["get"],
-        ordering=["path"],
-    )
     def tree(self, request, pk, *args, **kwargs):
         """
         List ancestors tree above the document.

@@ -16,6 +16,8 @@ the following command inside your docker container:
 
 ## [Unreleased]
 
+- The deprecated endpoint `/api/v1.0/documents/<document_id>/descendants` is removed. The search endpoint should be used instead.
+
 ## [4.6.0] - 2026-02-27
 
 - ⚠️ Some setup have changed to offer a bigger flexibility and consistency, overriding the favicon and logo are now from the theme configuration.

@@ -23,6 +23,10 @@ and this project adheres to
 - 🛂(frontend) fix cannot manage member on small screen #2226
 - 🐛(backend) load jwks url when OIDC_RS_PRIVATE_KEY_STR is set
 
+### Removed
+
+- 🔥(backend) remove deprecated descendants endpoint #2243
+
 ## [v4.8.6] - 2026-04-08
 
 ### Added
