@@ -17,6 +17,8 @@ the following command inside your docker container:
 ## [Unreleased]
 
 - The deprecated endpoint `/api/v1.0/documents/<document_id>/descendants` is removed. The search endpoint should be used instead.
+- Upgrade docspec dependency to version >= 3.0.0
+  The docspec service has changed since version 3.0.0, we ware now compatible with this version and not with version 2.x.x anymore
 
 ## [4.6.0] - 2026-02-27
 
