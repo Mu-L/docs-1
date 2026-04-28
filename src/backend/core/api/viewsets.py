@@ -996,7 +996,10 @@ class DocumentViewSet(
         Restore a soft-deleted document if it was deleted less than x days ago.
         """
         document = self.get_object()
-        document.restore()
+        try:
+            document.restore()
+        except RuntimeError as err:
+            raise drf.exceptions.ValidationError({"detail": str(err)}) from err
 
         return drf_response.Response(
             {"detail": "Document has been successfully restored."},
