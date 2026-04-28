@@ -7,6 +7,7 @@ from functools import cache
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
+from langfuse import get_client, observe
 from langfuse.openai import OpenAI as OpenAI_Langfuse
 from mistralai import Mistral
 
@@ -89,15 +90,36 @@ class LegacyAiServiceMistralClient(LegacyAiClient):
             server_url=settings.MISTRAL_SDK_BASE_URL,
         )
 
+    @observe(as_type="generation")
     def call_ai_api(self, system_content, text) -> str:
+        langfuse = None
+        messages = [
+            {"role": "system", "content": system_content},
+            {"role": "user", "content": text},
+        ]
+        if settings.LANGFUSE_PUBLIC_KEY:
+            langfuse = get_client()
+            langfuse.auth_check()
+
+            langfuse.update_current_generation(
+                input=messages,
+                model=settings.AI_MODEL,
+            )
+
         response = self.client.chat.complete(
             model=settings.AI_MODEL,
-            messages=[
-                {"role": "system", "content": system_content},
-                {"role": "user", "content": text},
-            ],
+            messages=messages,
             stream=False,
         )
+
+        if langfuse:
+            langfuse.update_current_generation(
+                usage_details={
+                    "input": response.usage.prompt_tokens,
+                    "output": response.usage.completion_tokens,
+                },
+                output=response.choices[0].message.content,
+            )
 
         return response.choices[0].message.content
 
