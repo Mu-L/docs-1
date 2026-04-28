@@ -44,6 +44,7 @@ from rest_framework import filters, status, viewsets
 from rest_framework import response as drf_response
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
+from treebeard.exceptions import InvalidMoveToDescendant
 
 from core import authentication, choices, enums, models
 from core.api.filters import remove_accents
@@ -961,7 +962,13 @@ class DocumentViewSet(
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        document.move(target_document, pos=position)
+        try:
+            document.move(target_document, pos=position)
+        except InvalidMoveToDescendant:
+            return drf.response.Response(
+                {"target_document_id": "Cannot move a document to its own descendant."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Make sure we have at least one owner
         if (

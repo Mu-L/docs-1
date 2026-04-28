@@ -29,6 +29,7 @@ and this project adheres to
 - 🐛(frontend) fix interlinking modal clipping #2213
 - 🛂(frontend) fix cannot manage member on small screen #2226
 - 🐛(backend) load jwks url when OIDC_RS_PRIVATE_KEY_STR is set
+- 🐛(backend) Prevent moving document to its own descendant or self #2208
 
 ### Removed
 
