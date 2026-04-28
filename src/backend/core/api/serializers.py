@@ -13,6 +13,7 @@ from django.utils.functional import lazy
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 
+import emoji
 import magic
 from rest_framework import serializers
 
@@ -874,6 +875,12 @@ class ReactionSerializer(serializers.ModelSerializer):
             "users",
         ]
         read_only_fields = ["id", "created_at", "users"]
+
+    def validate_emoji(self, value):
+        """Ensure the reaction is a single emoji."""
+        if not emoji.is_emoji(value):
+            raise serializers.ValidationError("Reaction must be a single valid emoji.")
+        return value
 
 
 class CommentSerializer(serializers.ModelSerializer):
