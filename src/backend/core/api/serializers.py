@@ -19,7 +19,7 @@ from rest_framework import serializers
 
 from core import choices, enums, models, validators
 from core.services import mime_types
-from core.services.ai_services import AI_ACTIONS
+from core.services.ai_services.legacy import AI_ACTIONS
 from core.services.converter_services import (
     ConversionError,
     Converter,

@@ -33,6 +33,9 @@ Other changes:
 - The deprecated endpoint `/api/v1.0/documents/<document_id>/descendants` is removed. The search endpoint should be used instead.
 - Upgrade docspec dependency to version >= 3.0.0
   The docspec service has changed since version 3.0.0, we ware now compatible with this version and not with version 2.x.x anymore
+- It is now possible to use the Mistral SDK instead of the OpenAI for the AI features. If your provider is compatible with the mistral API, we encourage you to use it.
+- `AI_API_KEY` settings is renamed in `OPENAI_SDK_API_KEY` and is only used to congiure the OpenAi sdk
+- `AI_BASE_URL` settings is renamed in `OPENAI_SDK_BASE_URL` and is only used to congiure the OpenAi sdk
 
 ## [4.6.0] - 2026-02-27
 

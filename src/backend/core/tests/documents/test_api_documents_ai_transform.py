@@ -8,7 +8,7 @@ import pytest
 from rest_framework.test import APIClient
 
 from core import factories
-from core.services.ai_services import configure_legacy_openai_client
+from core.services.ai_services.legacy import get_legacy_ai_service
 from core.tests.conftest import TEAM, USER, VIA
 
 pytestmark = pytest.mark.django_db
@@ -17,6 +17,8 @@ pytestmark = pytest.mark.django_db
 @pytest.fixture
 def ai_settings(settings):
     """Fixture to set AI settings."""
+    settings.AI_FEATURE_ENABLED = True
+    settings.AI_FEATURE_LEGACY_ENABLED = True
     settings.OPENAI_SDK_BASE_URL = "http://example.com"
     settings.OPENAI_SDK_API_KEY = "test-key"
     settings.AI_MODEL = "llama"
@@ -25,8 +27,7 @@ def ai_settings(settings):
 @pytest.fixture(autouse=True)
 def clear_openai_client_config():
     """Clear the _configure_legacy_openai_client cache"""
-    yield
-    configure_legacy_openai_client.cache_clear()
+    get_legacy_ai_service.cache_clear()
 
 
 @pytest.mark.parametrize(
@@ -37,7 +38,7 @@ def clear_openai_client_config():
         ("restricted", "reader", "restricted"),
         ("restricted", "editor", "public"),
         ("restricted", "editor", "authenticated"),
-        ("restricted", "editor", "restrictied"),
+        ("restricted", "editor", "restricted"),
         ("authenticated", "reader", "public"),
         ("authenticated", "reader", "authenticated"),
         ("authenticated", "reader", "restricted"),
@@ -281,6 +282,7 @@ def test_api_documents_ai_transform_success(mock_create, via, role, mock_user_te
     )
 
 
+@pytest.mark.usefixtures("ai_settings")
 def test_api_documents_ai_transform_empty_text():
     """The text should not be empty when requesting AI transform."""
     user = factories.UserFactory()
@@ -297,6 +299,7 @@ def test_api_documents_ai_transform_empty_text():
     assert response.json() == {"text": ["This field may not be blank."]}
 
 
+@pytest.mark.usefixtures("ai_settings")
 def test_api_documents_ai_transform_invalid_action():
     """The action should valid when requesting AI transform."""
     user = factories.UserFactory()

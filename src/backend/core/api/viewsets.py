@@ -49,7 +49,8 @@ from treebeard.exceptions import InvalidMoveToDescendant
 from core import authentication, choices, enums, models
 from core.api.filters import remove_accents
 from core.services import mime_types
-from core.services.ai_services import AIService
+from core.services.ai_services.blocknote import AIService
+from core.services.ai_services.legacy import get_legacy_ai_service
 from core.services.collaboration_services import CollaborationService
 from core.services.converter_services import (
     ConversionError,
@@ -2133,13 +2134,16 @@ class DocumentViewSet(
         # Check permissions first
         self.get_object()
 
+        if not settings.AI_FEATURE_ENABLED or not settings.AI_FEATURE_LEGACY_ENABLED:
+            raise ValidationError("AI feature is not enabled.")
+
         serializer = serializers.AITransformSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         text = serializer.validated_data["text"]
         action = serializer.validated_data["action"]
 
-        response = AIService().transform(text, action)
+        response = get_legacy_ai_service().transform(text, action)
 
         return drf.response.Response(response, status=drf.status.HTTP_200_OK)
 
@@ -2161,13 +2165,16 @@ class DocumentViewSet(
         # Check permissions first
         self.get_object()
 
+        if not settings.AI_FEATURE_ENABLED or not settings.AI_FEATURE_LEGACY_ENABLED:
+            raise ValidationError("AI feature is not enabled.")
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         text = serializer.validated_data["text"]
         language = serializer.validated_data["language"]
 
-        response = AIService().translate(text, language)
+        response = get_legacy_ai_service().translate(text, language)
 
         return drf.response.Response(response, status=drf.status.HTTP_200_OK)
 
