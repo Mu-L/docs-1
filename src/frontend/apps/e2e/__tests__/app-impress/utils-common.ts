@@ -137,13 +137,10 @@ export const createDoc = async (
       })
       .click();
 
-    await page.waitForURL('**/docs/**', {
-      timeout: 10000,
-      waitUntil: 'networkidle',
-    });
-
     const input = page.getByLabel('Document title');
-    await expect(input).toBeVisible();
+    await expect(input).toBeVisible({
+      timeout: 10000,
+    });
     await expect(input).toHaveText('');
 
     await input.fill(randomDocs[i]);
@@ -251,6 +248,7 @@ export const waitForResponseCreateDoc = (page: Page) => {
 
 export const mockedDocument = async (page: Page, data: object) => {
   // document/[ID]/ or document/[ID]/tree/ routes
+  const uuid = crypto.randomUUID();
   await page.route(/.*\/documents\/[^/]+\/(?:$|tree\/.*)/, async (route) => {
     const request = route.request();
     if (request.method().includes('GET') && !request.url().includes('page=')) {
@@ -259,7 +257,7 @@ export const mockedDocument = async (page: Page, data: object) => {
       };
       await route.fulfill({
         json: {
-          id: 'mocked-document-id',
+          id: uuid,
           title: 'Mocked document',
           path: '000000',
           abilities: {
@@ -304,6 +302,8 @@ export const mockedDocument = async (page: Page, data: object) => {
       await route.continue();
     }
   });
+
+  return uuid;
 };
 
 export const mockedListDocs = async (page: Page, data: object[] = []) => {
