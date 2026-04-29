@@ -226,7 +226,9 @@ def test_external_api_documents_ai_translate_can_be_allowed(
                     "Translate the content in the html to the "
                     "specified language Colombian Spanish. "
                     "Check the translation for accuracy and make any necessary corrections. "
-                    "Do not provide any other information."
+                    "Do not provide any other information. "
+                    "Return the content directly without wrapping it in code blocks or markdown "
+                    "delimiters."
                 ),
             },
             {"role": "user", "content": "Hello"},

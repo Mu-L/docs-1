@@ -117,7 +117,9 @@ def test_api_documents_ai_translate_anonymous_success(mock_create, settings):
                     "Keep the same html structure and formatting. "
                     "Translate the content in the html to the specified language Spanish. "
                     "Check the translation for accuracy and make any necessary corrections. "
-                    "Do not provide any other information."
+                    "Do not provide any other information. "
+                    "Return the content directly without wrapping it in code blocks or markdown "
+                    "delimiters."
                 ),
             },
             {"role": "user", "content": "Hello"},
@@ -219,7 +221,9 @@ def test_api_documents_ai_translate_authenticated_success(mock_create, reach, ro
                     "Translate the content in the html to the "
                     "specified language Colombian Spanish. "
                     "Check the translation for accuracy and make any necessary corrections. "
-                    "Do not provide any other information."
+                    "Do not provide any other information. "
+                    "Return the content directly without wrapping it in code blocks or markdown "
+                    "delimiters."
                 ),
             },
             {"role": "user", "content": "Hello"},
@@ -296,7 +300,9 @@ def test_api_documents_ai_translate_success(mock_create, via, role, mock_user_te
                     "Translate the content in the html to the "
                     "specified language Colombian Spanish. "
                     "Check the translation for accuracy and make any necessary corrections. "
-                    "Do not provide any other information."
+                    "Do not provide any other information. "
+                    "Return the content directly without wrapping it in code blocks or markdown "
+                    "delimiters."
                 ),
             },
             {"role": "user", "content": "Hello"},

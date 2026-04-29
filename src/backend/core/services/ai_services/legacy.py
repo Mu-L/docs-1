@@ -61,7 +61,8 @@ AI_TRANSLATE = (
     "Keep the same html structure and formatting. "
     "Translate the content in the html to the specified language {language:s}. "
     "Check the translation for accuracy and make any necessary corrections. "
-    "Do not provide any other information."
+    "Do not provide any other information. "
+    "Return the content directly without wrapping it in code blocks or markdown delimiters."
 )
 
 
